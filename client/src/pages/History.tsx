@@ -1,25 +1,13 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
-import { Loader2, Home, Trash2, Eye } from "lucide-react";
-import { useEffect } from "react";
+import { Loader2, Home, Eye } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 export default function History() {
-  const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
 
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setLocation("/");
-    }
-  }, [isAuthenticated, setLocation]);
-
   const historyQuery = trpc.codeReview.getHistory.useQuery();
-
-  if (!isAuthenticated) return null;
 
   return (
     <div className="min-h-screen bg-white text-black flex flex-col">

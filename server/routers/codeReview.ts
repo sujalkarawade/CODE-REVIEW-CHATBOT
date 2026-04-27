@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { protectedProcedure, router } from "../_core/trpc";
-import { createCodeReview, getCodeReviewById, getUserCodeReviews, createChatMessage, getReviewChatMessages } from "../db";
+import { publicProcedure, router } from "../_core/trpc";
+import { createCodeReview, getCodeReviewById, getAllCodeReviews, createChatMessage, getReviewChatMessages } from "../db";
 import { storagePut, storageGet } from "../storage";
 import { invokeLLM } from "../_core/llm";
 
@@ -25,17 +25,17 @@ interface ReviewAnalysis {
 
 export const codeReviewRouter = router({
   // Upload and analyze code
-  uploadAndReview: protectedProcedure
+  uploadAndReview: publicProcedure
     .input(
       z.object({
         fileName: z.string(),
         fileContent: z.string(),
       })
     )
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input }) => {
       try {
-        // Store file in S3
-        const fileKey = `code-reviews/${ctx.user.id}/${Date.now()}-${input.fileName}`;
+        // Store file in S3 (skipped if storage not configured)
+        const fileKey = `code-reviews/${Date.now()}-${input.fileName}`;
         const { url: fileUrl } = await storagePut(fileKey, input.fileContent, "text/plain");
 
         // Detect language from filename
@@ -46,7 +46,6 @@ export const codeReviewRouter = router({
 
         // Create code review record
         const result = await createCodeReview({
-          userId: ctx.user.id,
           fileName: input.fileName,
           fileKey,
           fileUrl,
@@ -74,16 +73,11 @@ export const codeReviewRouter = router({
     }),
 
   // Get review by ID
-  getReview: protectedProcedure
+  getReview: publicProcedure
     .input(z.object({ reviewId: z.number() }))
-    .query(async ({ input, ctx }) => {
+    .query(async ({ input }) => {
       const review = await getCodeReviewById(input.reviewId);
       if (!review) return null;
-
-      // Verify ownership
-      if (review.userId !== ctx.user.id) {
-        throw new Error("Unauthorized");
-      }
 
       return {
         ...review,
@@ -92,9 +86,9 @@ export const codeReviewRouter = router({
       };
     }),
 
-  // Get user's review history
-  getHistory: protectedProcedure.query(async ({ ctx }) => {
-    const reviews = await getUserCodeReviews(ctx.user.id);
+  // Get all review history
+  getHistory: publicProcedure.query(async () => {
+    const reviews = await getAllCodeReviews();
     return reviews.map((review) => ({
       ...review,
       bugs: review.bugs ? JSON.parse(review.bugs) : [],
@@ -103,43 +97,35 @@ export const codeReviewRouter = router({
   }),
 
   // Download original code file
-  downloadFile: protectedProcedure
+  downloadFile: publicProcedure
     .input(z.object({ reviewId: z.number() }))
-    .query(async ({ input, ctx }) => {
+    .query(async ({ input }) => {
       const review = await getCodeReviewById(input.reviewId);
-      if (!review) return null;
-
-      // Verify ownership
-      if (review.userId !== ctx.user.id) {
-        throw new Error("Unauthorized");
-      }
+      if (!review || !review.fileKey) return null;
 
       // Get presigned URL for download
       const { url } = await storageGet(review.fileKey);
       return {
         fileName: review.fileName,
-        downloadUrl: url,
+        downloadUrl: url || null,
       };
     }),
 
   // Chat about code review
-  chat: protectedProcedure
+  chat: publicProcedure
     .input(
       z.object({
         reviewId: z.number(),
         message: z.string(),
       })
     )
-    .mutation(async ({ input, ctx }) => {
-      // Verify review ownership
+    .mutation(async ({ input }) => {
       const review = await getCodeReviewById(input.reviewId);
       if (!review) throw new Error("Review not found");
-      if (review.userId !== ctx.user.id) throw new Error("Unauthorized");
 
       // Save user message
       await createChatMessage({
         reviewId: input.reviewId,
-        userId: ctx.user.id,
         role: "user",
         content: input.message,
       });
@@ -177,7 +163,6 @@ Answer the user's follow-up questions about this code.`;
       // Save assistant response
       await createChatMessage({
         reviewId: input.reviewId,
-        userId: ctx.user.id,
         role: "assistant",
         content: assistantMessage,
       });
@@ -188,12 +173,11 @@ Answer the user's follow-up questions about this code.`;
     }),
 
   // Get chat history for a review
-  getChatHistory: protectedProcedure
+  getChatHistory: publicProcedure
     .input(z.object({ reviewId: z.number() }))
-    .query(async ({ input, ctx }) => {
+    .query(async ({ input }) => {
       const review = await getCodeReviewById(input.reviewId);
       if (!review) throw new Error("Review not found");
-      if (review.userId !== ctx.user.id) throw new Error("Unauthorized");
 
       return await getReviewChatMessages(input.reviewId);
     }),

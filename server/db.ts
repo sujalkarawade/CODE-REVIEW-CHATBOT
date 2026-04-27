@@ -104,10 +104,10 @@ export async function getCodeReviewById(id: number) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-export async function getUserCodeReviews(userId: number) {
+export async function getAllCodeReviews() {
   const db = await getDb();
   if (!db) return [];
-  return await db.select().from(codeReviews).where(eq(codeReviews.userId, userId)).orderBy(desc(codeReviews.createdAt));
+  return await db.select().from(codeReviews).orderBy(desc(codeReviews.createdAt));
 }
 
 // Chat message queries

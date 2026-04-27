@@ -1,4 +1,3 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { useLocation, useParams } from "wouter";
@@ -29,7 +28,6 @@ interface ChatMessage {
 }
 
 export default function Review() {
-  const { user, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const { reviewId } = useParams();
   const reviewIdNum = parseInt(reviewId || "0", 10);
@@ -43,13 +41,6 @@ export default function Review() {
   const chatHistoryQuery = trpc.codeReview.getChatHistory.useQuery({ reviewId: reviewIdNum });
   const downloadQuery = trpc.codeReview.downloadFile.useQuery({ reviewId: reviewIdNum });
   const chatMutation = trpc.codeReview.chat.useMutation();
-
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setLocation("/");
-    }
-  }, [isAuthenticated, setLocation]);
 
   // Update local messages from query
   useEffect(() => {
@@ -109,8 +100,6 @@ export default function Review() {
       setIsSendingChat(false);
     }
   };
-
-  if (!isAuthenticated) return null;
 
   if (reviewQuery.isLoading) {
     return (

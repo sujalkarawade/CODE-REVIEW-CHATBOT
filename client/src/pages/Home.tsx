@@ -1,13 +1,10 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { getLoginUrl } from "@/const";
 import { useState, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
-import { Loader2, Upload, ArrowRight } from "lucide-react";
+import { Loader2, Upload } from "lucide-react";
 
 export default function Home() {
-  const { user, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +25,6 @@ export default function Home() {
         fileContent: content,
       });
 
-      // Navigate to review page
       setLocation(`/review/${result.reviewId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
@@ -45,25 +41,13 @@ export default function Home() {
             <h1 className="text-6xl font-black leading-tight">CODE REVIEW</h1>
             <p className="text-xl font-bold mt-2 tracking-tight">AI-POWERED ANALYSIS</p>
           </div>
-          {isAuthenticated ? (
-            <div className="text-right">
-              <p className="font-bold text-lg">{user?.name}</p>
-              <Button
-                variant="outline"
-                className="mt-2 border-2 border-black font-bold"
-                onClick={() => setLocation("/history")}
-              >
-                HISTORY
-              </Button>
-            </div>
-          ) : (
-            <Button
-              className="bg-black text-white border-2 border-black font-bold text-lg px-6 py-3"
-              onClick={() => (window.location.href = getLoginUrl())}
-            >
-              LOGIN
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            className="mt-2 border-2 border-black font-bold"
+            onClick={() => setLocation("/history")}
+          >
+            HISTORY
+          </Button>
         </div>
       </header>
 
@@ -81,58 +65,43 @@ export default function Home() {
           </div>
 
           {/* Upload Area */}
-          {isAuthenticated ? (
-            <div className="mb-16">
-              <div
-                className="border-4 border-black p-12 cursor-pointer hover:bg-black hover:text-white transition-colors"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                  accept=".py,.js,.ts,.tsx,.jsx,.java,.cpp,.c,.cs,.rb,.go,.rs,.php,.swift,.kt,.scala,.sh,.sql,.html,.css,.json,.xml,.yaml,.yml,.txt"
-                  disabled={isUploading}
-                />
+          <div className="mb-16">
+            <div
+              className="border-4 border-black p-12 cursor-pointer hover:bg-black hover:text-white transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                onChange={handleFileSelect}
+                className="hidden"
+                accept=".py,.js,.ts,.tsx,.jsx,.java,.cpp,.c,.cs,.rb,.go,.rs,.php,.swift,.kt,.scala,.sh,.sql,.html,.css,.json,.xml,.yaml,.yml,.txt"
+                disabled={isUploading}
+              />
 
-                <div className="text-center">
-                  <Upload className="w-16 h-16 mx-auto mb-4" />
-                  <h3 className="text-3xl font-black mb-2">CLICK TO UPLOAD</h3>
-                  <p className="text-lg font-bold mb-4">or drag and drop your code file</p>
-                  <p className="text-sm font-bold opacity-75">
-                    Python • JavaScript • TypeScript • Java • C++ • Go • Rust • and more
-                  </p>
-                </div>
+              <div className="text-center">
+                <Upload className="w-16 h-16 mx-auto mb-4" />
+                <h3 className="text-3xl font-black mb-2">CLICK TO UPLOAD</h3>
+                <p className="text-lg font-bold mb-4">or drag and drop your code file</p>
+                <p className="text-sm font-bold opacity-75">
+                  Python • JavaScript • TypeScript • Java • C++ • Go • Rust • and more
+                </p>
               </div>
-
-              {error && (
-                <div className="mt-4 border-4 border-red-600 bg-red-50 p-4">
-                  <p className="font-bold text-red-900">{error}</p>
-                </div>
-              )}
-
-              {isUploading && (
-                <div className="mt-4 flex items-center justify-center gap-3 font-bold text-lg">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  ANALYZING YOUR CODE...
-                </div>
-              )}
             </div>
-          ) : (
-            <div className="border-4 border-black p-12 text-center mb-16">
-              <h3 className="text-3xl font-black mb-4">LOGIN TO GET STARTED</h3>
-              <p className="text-lg font-bold mb-8">
-                Sign in to upload code, get AI analysis, and access your review history.
-              </p>
-              <Button
-                className="bg-black text-white border-2 border-black font-bold text-lg px-8 py-4"
-                onClick={() => (window.location.href = getLoginUrl())}
-              >
-                LOGIN NOW <ArrowRight className="ml-2 w-5 h-5" />
-              </Button>
-            </div>
-          )}
+
+            {error && (
+              <div className="mt-4 border-4 border-red-600 bg-red-50 p-4">
+                <p className="font-bold text-red-900">{error}</p>
+              </div>
+            )}
+
+            {isUploading && (
+              <div className="mt-4 flex items-center justify-center gap-3 font-bold text-lg">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                ANALYZING YOUR CODE...
+              </div>
+            )}
+          </div>
 
           {/* Features Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16 border-t-4 border-black pt-16">

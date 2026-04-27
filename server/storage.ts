@@ -33,15 +33,23 @@ export async function storagePut(
   data: Buffer | Uint8Array | string,
   contentType = "application/octet-stream",
 ): Promise<{ key: string; url: string }> {
-  const { forgeUrl, forgeKey } = getForgeConfig();
+  // If Forge storage is not configured, skip upload and return a placeholder.
+  const forgeUrl = ENV.forgeApiUrl;
+  const forgeKey = ENV.forgeApiKey;
+  if (!forgeUrl || !forgeKey) {
+    const key = normalizeKey(relKey);
+    return { key, url: "" };
+  }
+
+  const { forgeUrl: fUrl, forgeKey: fKey } = getForgeConfig();
   const key = appendHashSuffix(normalizeKey(relKey));
 
   // 1. Get presigned PUT URL from Forge
-  const presignUrl = new URL("v1/storage/presign/put", forgeUrl + "/");
+  const presignUrl = new URL("v1/storage/presign/put", fUrl + "/");
   presignUrl.searchParams.set("path", key);
 
   const presignResp = await fetch(presignUrl, {
-    headers: { Authorization: `Bearer ${forgeKey}` },
+    headers: { Authorization: `Bearer ${fKey}` },
   });
 
   if (!presignResp.ok) {

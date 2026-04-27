@@ -30,9 +30,8 @@ export type InsertUser = typeof users.$inferInsert;
  */
 export const codeReviews = mysqlTable("codeReviews", {
   id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
   fileName: varchar("fileName", { length: 255 }).notNull(),
-  fileKey: varchar("fileKey", { length: 255 }).notNull(),
+  fileKey: varchar("fileKey", { length: 255 }),
   fileUrl: varchar("fileUrl", { length: 512 }),
   fileContent: text("fileContent"),
   language: varchar("language", { length: 50 }),
@@ -52,7 +51,6 @@ export type InsertCodeReview = typeof codeReviews.$inferInsert;
 export const chatMessages = mysqlTable("chatMessages", {
   id: int("id").autoincrement().primaryKey(),
   reviewId: int("reviewId").notNull(),
-  userId: int("userId").notNull(),
   role: mysqlEnum("role", ["user", "assistant"]).notNull(),
   content: text("content").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
