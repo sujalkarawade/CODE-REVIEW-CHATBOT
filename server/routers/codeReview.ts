@@ -1,7 +1,5 @@
 import { z } from "zod";
 import { publicProcedure, router } from "../_core/trpc";
-import { createCodeReview, getCodeReviewById, getAllCodeReviews, createChatMessage, getReviewChatMessages } from "../db";
-import { storagePut, storageGet } from "../storage";
 import { invokeLLM } from "../_core/llm";
 
 interface BugItem {
@@ -23,117 +21,81 @@ interface ReviewAnalysis {
   explanation: string;
 }
 
+interface Review {
+  id: number;
+  fileName: string;
+  fileContent: string;
+  language: string;
+  bugs: BugItem[];
+  suggestions: SuggestionItem[];
+  explanation: string;
+  createdAt: Date;
+}
+
+interface ChatMessage {
+  id: number;
+  reviewId: number;
+  role: "user" | "assistant";
+  content: string;
+  createdAt: Date;
+}
+
+// In-memory store
+const reviews = new Map<number, Review>();
+const chatMessages = new Map<number, ChatMessage[]>();
+let nextReviewId = 1;
+let nextMessageId = 1;
+
 export const codeReviewRouter = router({
   // Upload and analyze code
   uploadAndReview: publicProcedure
-    .input(
-      z.object({
-        fileName: z.string(),
-        fileContent: z.string(),
-      })
-    )
+    .input(z.object({ fileName: z.string(), fileContent: z.string() }))
     .mutation(async ({ input }) => {
-      try {
-        // Store file in S3 (skipped if storage not configured)
-        const fileKey = `code-reviews/${Date.now()}-${input.fileName}`;
-        const { url: fileUrl } = await storagePut(fileKey, input.fileContent, "text/plain");
+      const language = detectLanguage(input.fileName);
+      const analysis = await analyzeCode(input.fileContent, language);
 
-        // Detect language from filename
-        const language = detectLanguage(input.fileName);
+      const id = nextReviewId++;
+      const review: Review = {
+        id,
+        fileName: input.fileName,
+        fileContent: input.fileContent,
+        language,
+        bugs: analysis.bugs,
+        suggestions: analysis.suggestions,
+        explanation: analysis.explanation,
+        createdAt: new Date(),
+      };
+      reviews.set(id, review);
 
-        // Call LLM for analysis
-        const analysis = await analyzeCode(input.fileContent, language);
-
-        // Create code review record
-        const result = await createCodeReview({
-          fileName: input.fileName,
-          fileKey,
-          fileUrl,
-          fileContent: input.fileContent,
-          language,
-          bugs: JSON.stringify(analysis.bugs),
-          suggestions: JSON.stringify(analysis.suggestions),
-          explanation: analysis.explanation,
-        });
-
-        // Get the inserted ID
-        const reviewId = (result as any).insertId;
-
-        return {
-          reviewId,
-          fileName: input.fileName,
-          language,
-          analysis,
-          fileUrl,
-        };
-      } catch (error) {
-        console.error("Error uploading and reviewing code:", error);
-        throw error;
-      }
+      return { reviewId: id, fileName: input.fileName, language, analysis };
     }),
 
   // Get review by ID
   getReview: publicProcedure
     .input(z.object({ reviewId: z.number() }))
-    .query(async ({ input }) => {
-      const review = await getCodeReviewById(input.reviewId);
-      if (!review) return null;
-
-      return {
-        ...review,
-        bugs: review.bugs ? JSON.parse(review.bugs) : [],
-        suggestions: review.suggestions ? JSON.parse(review.suggestions) : [],
-      };
+    .query(({ input }) => {
+      return reviews.get(input.reviewId) ?? null;
     }),
 
   // Get all review history
-  getHistory: publicProcedure.query(async () => {
-    const reviews = await getAllCodeReviews();
-    return reviews.map((review) => ({
-      ...review,
-      bugs: review.bugs ? JSON.parse(review.bugs) : [],
-      suggestions: review.suggestions ? JSON.parse(review.suggestions) : [],
-    }));
+  getHistory: publicProcedure.query(() => {
+    return Array.from(reviews.values()).sort(
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+    );
   }),
 
-  // Download original code file
-  downloadFile: publicProcedure
-    .input(z.object({ reviewId: z.number() }))
-    .query(async ({ input }) => {
-      const review = await getCodeReviewById(input.reviewId);
-      if (!review || !review.fileKey) return null;
-
-      // Get presigned URL for download
-      const { url } = await storageGet(review.fileKey);
-      return {
-        fileName: review.fileName,
-        downloadUrl: url || null,
-      };
-    }),
-
-  // Chat about code review
+  // Chat about a review
   chat: publicProcedure
-    .input(
-      z.object({
-        reviewId: z.number(),
-        message: z.string(),
-      })
-    )
+    .input(z.object({ reviewId: z.number(), message: z.string() }))
     .mutation(async ({ input }) => {
-      const review = await getCodeReviewById(input.reviewId);
+      const review = reviews.get(input.reviewId);
       if (!review) throw new Error("Review not found");
 
+      const history = chatMessages.get(input.reviewId) ?? [];
+
       // Save user message
-      await createChatMessage({
-        reviewId: input.reviewId,
-        role: "user",
-        content: input.message,
-      });
+      history.push({ id: nextMessageId++, reviewId: input.reviewId, role: "user", content: input.message, createdAt: new Date() });
 
-      // Get chat history for context
-      const chatHistory = await getReviewChatMessages(input.reviewId);
-
-      // Generate assistant response using LLM
       const systemPrompt = `You are a helpful code review assistant. The user uploaded code and you previously analyzed it.
 Current code:
 \`\`\`${review.language}
@@ -141,81 +103,47 @@ ${review.fileContent}
 \`\`\`
 
 Previous analysis:
-Bugs: ${review.bugs}
-Suggestions: ${review.suggestions}
+Bugs: ${JSON.stringify(review.bugs)}
+Suggestions: ${JSON.stringify(review.suggestions)}
 Explanation: ${review.explanation}
 
 Answer the user's follow-up questions about this code.`;
 
       const messages = [
         { role: "system" as const, content: systemPrompt },
-        ...chatHistory.map((msg) => ({
-          role: msg.role as "user" | "assistant",
-          content: msg.content,
-        })),
-        { role: "user" as const, content: input.message },
+        ...history.map((m) => ({ role: m.role, content: m.content })),
       ];
 
       const response = await invokeLLM({ messages });
       const responseContent = response.choices[0]?.message?.content;
       const assistantMessage = typeof responseContent === "string" ? responseContent : "I couldn't generate a response.";
 
-      // Save assistant response
-      await createChatMessage({
-        reviewId: input.reviewId,
-        role: "assistant",
-        content: assistantMessage,
-      });
+      history.push({ id: nextMessageId++, reviewId: input.reviewId, role: "assistant", content: assistantMessage, createdAt: new Date() });
+      chatMessages.set(input.reviewId, history);
 
-      return {
-        message: assistantMessage,
-      };
+      return { message: assistantMessage };
     }),
 
   // Get chat history for a review
   getChatHistory: publicProcedure
     .input(z.object({ reviewId: z.number() }))
-    .query(async ({ input }) => {
-      const review = await getCodeReviewById(input.reviewId);
-      if (!review) throw new Error("Review not found");
-
-      return await getReviewChatMessages(input.reviewId);
+    .query(({ input }) => {
+      return chatMessages.get(input.reviewId) ?? [];
     }),
 });
 
-// Helper function to detect programming language from filename
 function detectLanguage(fileName: string): string {
   const ext = fileName.split(".").pop()?.toLowerCase() || "";
-  const languageMap: Record<string, string> = {
-    py: "python",
-    js: "javascript",
-    ts: "typescript",
-    tsx: "typescript",
-    jsx: "javascript",
-    java: "java",
-    cpp: "cpp",
-    c: "c",
-    cs: "csharp",
-    rb: "ruby",
-    go: "go",
-    rs: "rust",
-    php: "php",
-    swift: "swift",
-    kt: "kotlin",
-    scala: "scala",
-    sh: "bash",
-    sql: "sql",
-    html: "html",
-    css: "css",
-    json: "json",
-    xml: "xml",
-    yaml: "yaml",
-    yml: "yaml",
+  const map: Record<string, string> = {
+    py: "python", js: "javascript", ts: "typescript", tsx: "typescript",
+    jsx: "javascript", java: "java", cpp: "cpp", c: "c", cs: "csharp",
+    rb: "ruby", go: "go", rs: "rust", php: "php", swift: "swift",
+    kt: "kotlin", scala: "scala", sh: "bash", sql: "sql", html: "html",
+    css: "css", json: "json", xml: "xml", yaml: "yaml", yml: "yaml",
   };
-  return languageMap[ext] || ext || "text";
+  return map[ext] || ext || "text";
 }
 
-// Helper function to analyze code using LLM
 async function analyzeCode(code: string, language: string): Promise<ReviewAnalysis> {
   const systemPrompt = `You are an expert code reviewer. Analyze the provided code and respond with a JSON object containing:
 1. "bugs": Array of bug objects with fields: severity (critical/high/medium/low), line (optional), issue (description), fix (suggested fix)
@@ -224,12 +152,10 @@ async function analyzeCode(code: string, language: string): Promise<ReviewAnalys
 
 Respond ONLY with valid JSON, no markdown formatting.`;
 
-  const userPrompt = `Analyze this ${language} code:\n\n\`\`\`${language}\n${code}\n\`\`\``;
-
   const response = await invokeLLM({
     messages: [
       { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
+      { role: "user", content: `Analyze this ${language} code:\n\n\`\`\`${language}\n${code}\n\`\`\`` },
     ],
     response_format: {
       type: "json_schema",
@@ -244,10 +170,7 @@ Respond ONLY with valid JSON, no markdown formatting.`;
               items: {
                 type: "object",
                 properties: {
-                  severity: {
-                    type: "string",
-                    enum: ["critical", "high", "medium", "low"],
-                  },
+                  severity: { type: "string", enum: ["critical", "high", "medium", "low"] },
                   line: { type: "number" },
                   issue: { type: "string" },
                   fix: { type: "string" },
@@ -277,7 +200,5 @@ Respond ONLY with valid JSON, no markdown formatting.`;
 
   const content = response.choices[0]?.message?.content;
   if (!content) throw new Error("No response from LLM");
-
-  const contentStr = typeof content === "string" ? content : JSON.stringify(content);
-  return JSON.parse(contentStr);
+  return JSON.parse(typeof content === "string" ? content : JSON.stringify(content));
 }

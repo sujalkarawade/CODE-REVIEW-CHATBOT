@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { useLocation, useParams } from "wouter";
-import { Loader2, Download, MessageCircle, Home, AlertTriangle, Lightbulb, BookOpen } from "lucide-react";
+import { Loader2, MessageCircle, Home, AlertTriangle, Lightbulb, BookOpen } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { Streamdown } from "streamdown";
 import hljs from "highlight.js";
@@ -39,7 +39,6 @@ export default function Review() {
 
   const reviewQuery = trpc.codeReview.getReview.useQuery({ reviewId: reviewIdNum });
   const chatHistoryQuery = trpc.codeReview.getChatHistory.useQuery({ reviewId: reviewIdNum });
-  const downloadQuery = trpc.codeReview.downloadFile.useQuery({ reviewId: reviewIdNum });
   const chatMutation = trpc.codeReview.chat.useMutation();
 
   // Update local messages from query
@@ -163,14 +162,6 @@ export default function Review() {
             <p className="font-bold text-sm mt-1 uppercase">{review.language}</p>
           </div>
           <div className="flex gap-3">
-            {downloadQuery.data && downloadQuery.data.downloadUrl && (
-              <Button
-                className="bg-black text-white border-2 border-black font-bold"
-                onClick={() => window.open(downloadQuery.data!.downloadUrl, "_blank")}
-              >
-                <Download className="w-4 h-4 mr-2" /> DOWNLOAD
-              </Button>
-            )}
             <Button
               variant="outline"
               className="border-2 border-black font-bold"

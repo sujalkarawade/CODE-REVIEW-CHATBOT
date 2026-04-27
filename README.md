@@ -1,6 +1,6 @@
 # 🤖 Code Review Chatbot
 
-An AI-powered assistant that provides deep structural analysis, bug detection, and improvement suggestions for your codebase. Built with a bold, high-contrast **Brutalist Aesthetic** — no login required.
+An AI-powered assistant that provides deep structural analysis, bug detection, and improvement suggestions for your codebase. Built with a bold, high-contrast **Brutalist Aesthetic** — no login, no database, no storage required.
 
 ---
 
@@ -10,7 +10,7 @@ An AI-powered assistant that provides deep structural analysis, bug detection, a
 - **Best Practice Suggestions**: Actionable insights on code style, modularity, and modern syntax.
 - **Step-by-Step Explanations**: Breaks down complex functions into human-readable logic flows.
 - **Follow-up Chat**: Ask specific questions about your code review in the side panel.
-- **Review History**: Persistent storage of past reviews with quick stats and downloadable source files.
+- **Session History**: Browse all reviews from the current session.
 - **Language Aware**: Supports `.py`, `.js`, `.ts`, `.java`, `.cpp`, `.go`, `.rs`, and more.
 
 ---
@@ -27,9 +27,7 @@ An AI-powered assistant that provides deep structural analysis, bug detection, a
 ### Backend
 - **Server**: Express.js
 - **API**: tRPC (end-to-end type safety)
-- **ORM**: Drizzle ORM
-- **Database**: MySQL (via `mysql2`)
-- **Storage**: AWS S3 (via Forge API)
+- **AI**: OpenRouter API (Gemini 2.5 Flash)
 - **Runtime**: Node.js
 
 ---
@@ -38,9 +36,6 @@ An AI-powered assistant that provides deep structural analysis, bug detection, a
 
 ### Prerequisites
 - Node.js (v18+)
-- pnpm
-- MySQL Database
-- S3-compatible Storage (or Forge API access)
 
 ### Installation
 
@@ -57,16 +52,9 @@ An AI-powered assistant that provides deep structural analysis, bug detection, a
 
 3. Set up environment variables — create a `.env` file in the root:
    ```env
-   DATABASE_URL=mysql://user:pass@localhost:3306/db
-   BUILT_IN_FORGE_API_URL=...
-   BUILT_IN_FORGE_API_KEY=...
-   VITE_APP_ID=...
+   OPENROUTER_API_KEY=your_openrouter_api_key
    ```
-
-4. Initialize the database:
-   ```bash
-   npm run db:push
-   ```
+   Get a free API key at [openrouter.ai](https://openrouter.ai).
 
 ---
 
@@ -96,12 +84,12 @@ npm run test
 ├── client/          # React 19 frontend (Vite)
 ├── server/          # Express + tRPC backend
 │   ├── _core/       # Server config & middleware
-│   ├── routers/     # tRPC API definitions
-│   └── db.ts        # Database queries
+│   └── routers/     # tRPC API definitions
 ├── shared/          # Shared types & constants
-├── drizzle/         # Database schema & migrations
 └── public/          # Static assets
 ```
+
+> Reviews and chat history are stored in-memory and reset on server restart.
 
 ---
 
