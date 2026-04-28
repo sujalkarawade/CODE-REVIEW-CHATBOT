@@ -277,7 +277,7 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   } = params;
 
   const payload: Record<string, unknown> = {
-    model: "google/gemini-2.5-flash",
+    model: ENV.openRouterModel,
     messages: messages.map(normalizeMessage),
   };
 
@@ -293,7 +293,7 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.tool_choice = normalizedToolChoice;
   }
 
-  payload.max_tokens = 32768
+  payload.max_tokens = 4096
 
   const normalizedResponseFormat = normalizeResponseFormat({
     responseFormat,

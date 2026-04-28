@@ -145,60 +145,22 @@ function detectLanguage(fileName: string): string {
 }
 
 async function analyzeCode(code: string, language: string): Promise<ReviewAnalysis> {
-  const systemPrompt = `You are an expert code reviewer. Analyze the provided code and respond with a JSON object containing:
-1. "bugs": Array of bug objects with fields: severity (critical/high/medium/low), line (optional), issue (description), fix (suggested fix)
-2. "suggestions": Array of suggestion objects with fields: category (string), suggestion (description), benefit (why it matters)
-3. "explanation": A clear, step-by-step explanation of what the code does and how it works
-
-Respond ONLY with valid JSON, no markdown formatting.`;
+  const systemPrompt = `You are a code reviewer. Analyze the code and respond with ONLY a JSON object (no markdown, no explanation outside JSON):
+{"bugs":[{"severity":"critical|high|medium|low","line":1,"issue":"...","fix":"..."}],"suggestions":[{"category":"...","suggestion":"...","benefit":"..."}],"explanation":"2-3 sentence summary of what the code does"}
+Keep bugs and suggestions to the most important ones only (max 5 each).`;
 
   const response = await invokeLLM({
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: `Analyze this ${language} code:\n\n\`\`\`${language}\n${code}\n\`\`\`` },
     ],
-    response_format: {
-      type: "json_schema",
-      json_schema: {
-        name: "code_review",
-        strict: true,
-        schema: {
-          type: "object",
-          properties: {
-            bugs: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  severity: { type: "string", enum: ["critical", "high", "medium", "low"] },
-                  line: { type: "number" },
-                  issue: { type: "string" },
-                  fix: { type: "string" },
-                },
-                required: ["severity", "issue", "fix"],
-              },
-            },
-            suggestions: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  category: { type: "string" },
-                  suggestion: { type: "string" },
-                  benefit: { type: "string" },
-                },
-                required: ["category", "suggestion", "benefit"],
-              },
-            },
-            explanation: { type: "string" },
-          },
-          required: ["bugs", "suggestions", "explanation"],
-        },
-      },
-    },
   });
 
   const content = response.choices[0]?.message?.content;
   if (!content) throw new Error("No response from LLM");
-  return JSON.parse(typeof content === "string" ? content : JSON.stringify(content));
+
+  const text = typeof content === "string" ? content : JSON.stringify(content);
+  // Strip markdown code blocks if model wraps response anyway
+  const cleaned = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+  return JSON.parse(cleaned);
 }

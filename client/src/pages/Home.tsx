@@ -38,16 +38,9 @@ export default function Home() {
       <header className="border-b-4 border-black">
         <div className="container py-8 flex justify-between items-start">
           <div>
-            <h1 className="text-6xl font-black leading-tight">CODE REVIEW</h1>
+            <h1 className="text-6xl font-black leading-tight">CODE REVIEW CHATBOT</h1>
             <p className="text-xl font-bold mt-2 tracking-tight">AI-POWERED ANALYSIS</p>
           </div>
-          <Button
-            variant="outline"
-            className="mt-2 border-2 border-black font-bold"
-            onClick={() => setLocation("/history")}
-          >
-            HISTORY
-          </Button>
         </div>
       </header>
 
@@ -103,30 +96,8 @@ export default function Home() {
             )}
           </div>
 
-          {/* Features Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16 border-t-4 border-black pt-16">
-            <div className="border-4 border-black p-8">
-              <h4 className="text-2xl font-black mb-3">BUGS</h4>
-              <p className="font-bold">Identify critical errors and issues in your code with AI precision.</p>
-            </div>
-            <div className="border-4 border-black p-8">
-              <h4 className="text-2xl font-black mb-3">SUGGESTIONS</h4>
-              <p className="font-bold">Get actionable recommendations for code quality and best practices.</p>
-            </div>
-            <div className="border-4 border-black p-8">
-              <h4 className="text-2xl font-black mb-3">EXPLANATION</h4>
-              <p className="font-bold">Understand exactly what your code does, step by step.</p>
-            </div>
-          </div>
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="border-t-4 border-black py-8 mt-16">
-        <div className="container">
-          <p className="font-bold text-center">POWERED BY AI • BUILT FOR DEVELOPERS</p>
-        </div>
-      </footer>
     </div>
   );
 }
