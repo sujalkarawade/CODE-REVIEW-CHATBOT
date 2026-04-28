@@ -115,7 +115,7 @@ Answer the user's follow-up questions about this code.`;
       ];
 
       const response = await invokeLLM({ messages });
-      const responseContent = response.choices[0]?.message?.content;
+      const responseContent = response?.choices?.[0]?.message?.content;
       const assistantMessage = typeof responseContent === "string" ? responseContent : "I couldn't generate a response.";
 
       history.push({ id: nextMessageId++, reviewId: input.reviewId, role: "assistant", content: assistantMessage, createdAt: new Date() });
@@ -156,7 +156,7 @@ Keep bugs and suggestions to the most important ones only (max 5 each).`;
     ],
   });
 
-  const content = response.choices[0]?.message?.content;
+  const content = response?.choices?.[0]?.message?.content;
   if (!content) throw new Error("No response from LLM");
 
   const text = typeof content === "string" ? content : JSON.stringify(content);

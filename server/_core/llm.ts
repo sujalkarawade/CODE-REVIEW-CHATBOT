@@ -209,11 +209,11 @@ const normalizeToolChoice = (
   return toolChoice;
 };
 
-const resolveApiUrl = () => "https://openrouter.ai/api/v1/chat/completions";
+const resolveApiUrl = () => "https://api.groq.com/openai/v1/chat/completions";
 
 const assertApiKey = () => {
-  if (!ENV.openRouterApiKey) {
-    throw new Error("OPENROUTER_API_KEY is not configured");
+  if (!ENV.groqApiKey) {
+    throw new Error("GROQ_API_KEY is not configured");
   }
 };
 
@@ -277,7 +277,7 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   } = params;
 
   const payload: Record<string, unknown> = {
-    model: ENV.openRouterModel,
+    model: ENV.groqModel,
     messages: messages.map(normalizeMessage),
   };
 
@@ -310,8 +310,7 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "authorization": `Bearer ${ENV.openRouterApiKey}`,
-      "HTTP-Referer": "https://github.com/code-review-chatbot",
+      "authorization": `Bearer ${ENV.groqApiKey}`,
     },
     body: JSON.stringify(payload),
   });
