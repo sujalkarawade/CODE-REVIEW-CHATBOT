@@ -1,3 +1,5 @@
+import "./history.css";
+
 export async function renderHistory(container, navigate) {
   container.innerHTML = `<div class="analyzing-overlay"><div class="spinner"></div><p>Loading History...</p></div>`;
 

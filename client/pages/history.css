@@ -1,0 +1,89 @@
+/* ── History Page ── */
+.history-page {
+  padding: 40px 0;
+}
+
+.history-page h2 {
+  font-size: 2rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  margin-bottom: 32px;
+}
+
+/* ── Empty State ── */
+.history-empty {
+  text-align: center;
+  padding: 80px 0;
+  font-weight: 700;
+  color: var(--gray-400);
+  font-size: 1.1rem;
+}
+
+/* ── Grid ── */
+.history-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 0;
+}
+
+/* ── Card ── */
+.history-card {
+  border: 3px solid var(--black);
+  margin: -1.5px;
+  padding: 20px;
+  cursor: pointer;
+  transition: background 0.1s, transform 0.1s;
+}
+
+.history-card:hover {
+  background: var(--gray-50);
+  transform: translateY(-2px);
+}
+
+.history-card-name {
+  font-size: 1rem;
+  font-weight: 900;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-card-lang {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--gray-600);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+
+.history-card-stats {
+  display: flex;
+  gap: 12px;
+}
+
+.stat {
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.stat span {
+  color: var(--gray-600);
+  font-weight: 600;
+}
+
+.history-card-date {
+  font-size: 0.75rem;
+  color: var(--gray-400);
+  margin-top: 12px;
+  font-weight: 600;
+}
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+  .history-grid {
+    grid-template-columns: 1fr;
+  }
+}

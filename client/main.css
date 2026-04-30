@@ -1,0 +1,40 @@
+/* ── Header ── */
+header {
+  border-bottom: var(--border);
+  padding: 20px 0;
+  position: sticky;
+  top: 0;
+  background: var(--white);
+  z-index: 100;
+}
+
+header .container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+header h1 {
+  font-size: 1.4rem;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  text-transform: uppercase;
+}
+
+header p {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--gray-600);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+nav {
+  display: flex;
+  gap: 8px;
+}
+
+/* ── Page wrapper ── */
+#page {
+  min-height: calc(100vh - 73px);
+}

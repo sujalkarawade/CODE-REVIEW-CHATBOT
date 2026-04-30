@@ -1,4 +1,5 @@
 import hljs from "highlight.js";
+import "./review.css";
 
 const severityClass = { critical: "severity-critical", high: "severity-high", medium: "severity-medium", low: "severity-low" };
 

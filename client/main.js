@@ -1,4 +1,6 @@
 import "highlight.js/styles/atom-one-light.css";
+import "./style.css";
+import "./main.css";
 import { renderHome } from "./pages/home.js";
 import { renderReview } from "./pages/review.js";
 import { renderHistory } from "./pages/history.js";

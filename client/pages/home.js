@@ -1,3 +1,5 @@
+import "./home.css";
+
 export function renderHome(container, navigate) {
   container.innerHTML = `
     <div class="container">
@@ -33,7 +35,7 @@ export function renderHome(container, navigate) {
           <p>Analyzing your code...</p>
         </div>
 
-        <div id="error-msg" class="hidden" style="margin-top:16px;padding:14px;border:3px solid #c0392b;background:#fdf0ef;font-weight:700;color:#c0392b;font-size:0.9rem;"></div>
+        <div id="error-msg" class="error-msg hidden"></div>
       </div>
     </div>
   `;
