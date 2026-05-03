@@ -8,11 +8,11 @@ const severityClass = {
   low: "severity-low",
 };
 
-const severityIcon = {
-  critical: "🔴",
-  high: "🟠",
-  medium: "🟡",
-  low: "🔵",
+const severityColor = {
+  critical: "#c0392b",
+  high:     "#d35400",
+  medium:   "#b7950b",
+  low:      "#1a5276",
 };
 
 export async function renderReview(container, reviewId, navigate) {
@@ -37,7 +37,7 @@ export async function renderReview(container, reviewId, navigate) {
   const bugs = Array.isArray(review.bugs) ? review.bugs : [];
   const suggestions = Array.isArray(review.suggestions) ? review.suggestions : [];
 
-  // Build a map of line number → bugs
+  // Map line → bugs
   const bugsByLine = {};
   bugs.forEach((b, idx) => {
     if (b.line) {
@@ -46,40 +46,53 @@ export async function renderReview(container, reviewId, navigate) {
     }
   });
 
-  // Highlight and split into lines
   const highlighted = hljs.highlightAuto(review.fileContent || "").value;
   const lines = highlighted.split("\n");
+  const inlineBugCount = bugs.filter(b => b.line).length;
 
-  // Build line-by-line code with inline bug markers
+  // Build line-by-line code
   const codeLines = lines.map((lineHtml, i) => {
     const lineNum = i + 1;
     const lineBugs = bugsByLine[lineNum] || [];
     const hasBug = lineBugs.length > 0;
-    const bugClass = hasBug ? `code-line has-bug ${severityClass[lineBugs[0].severity] || ""}` : "code-line";
+    const topBug = hasBug ? lineBugs[0] : null;
+    const lineClass = hasBug
+      ? `code-line has-bug ${severityClass[topBug.severity] || ""}`
+      : "code-line";
 
-    const markers = lineBugs.map(b =>
-      `<button class="bug-marker ${severityClass[b.severity] || ""}" data-bug="${b.idx}" title="${escHtml(b.issue)}">
-        ${severityIcon[b.severity] || "⚠"} Bug
-      </button>`
-    ).join("");
+    // Innovative badge: numbered circle with severity color
+    const badge = hasBug ? lineBugs.map((b, bi) =>
+      `<span class="bug-badge ${severityClass[b.severity]}" data-bug="${b.idx}" title="${escHtml(b.issue)}">
+        <span class="bug-badge-dot"></span>
+        <span class="bug-badge-label">${escHtml(b.severity[0].toUpperCase())}</span>
+      </span>`
+    ).join("") : "";
 
+    // Popup rendered inside the line row
     const popups = lineBugs.map(b =>
       `<div class="bug-popup" id="bug-popup-${b.idx}">
-        <div class="bug-popup-header">
-          <span class="severity-badge ${severityClass[b.severity]}">${escHtml(b.severity)}</span>
-          <span class="bug-popup-line">Line ${lineNum}</span>
+        <div class="bug-popup-top ${severityClass[b.severity]}">
+          <div class="bug-popup-top-left">
+            <span class="bug-popup-sev">${escHtml(b.severity.toUpperCase())}</span>
+            <span class="bug-popup-lineno">Line ${lineNum}</span>
+          </div>
           <button class="bug-popup-close" data-bug="${b.idx}">✕</button>
         </div>
-        <p class="bug-popup-issue">${escHtml(b.issue)}</p>
-        <p class="bug-popup-fix"><strong>Fix:</strong> ${escHtml(b.fix)}</p>
+        <div class="bug-popup-body">
+          <p class="bug-popup-issue">${escHtml(b.issue)}</p>
+          <div class="bug-popup-fix">
+            <span class="bug-popup-fix-label">Fix</span>
+            <p>${escHtml(b.fix)}</p>
+          </div>
+        </div>
       </div>`
     ).join("");
 
     return `
-      <div class="${bugClass}" data-line="${lineNum}">
+      <div class="${lineClass}" data-line="${lineNum}" ${hasBug ? `data-bugs="${lineBugs.map(b=>b.idx).join(',')}"` : ""}>
         <span class="line-num">${lineNum}</span>
         <span class="line-code">${lineHtml || " "}</span>
-        ${markers}
+        ${badge}
         ${popups}
       </div>`;
   }).join("");
@@ -95,16 +108,16 @@ export async function renderReview(container, reviewId, navigate) {
         </div>
         <div class="review-actions">
           <button class="btn btn-sm" id="back-btn">← Home</button>
-          <button class="btn btn-primary" id="chat-btn">💬 Chat about this code</button>
+          <button class="btn btn-primary" id="chat-btn">Chat about this code</button>
         </div>
       </div>
 
-      <!-- Code with inline bug markers -->
+      <!-- Code -->
       <div class="section-block">
         <div class="section-header">
           ⌨ &nbsp;Code
-          ${bugs.filter(b => b.line).length > 0
-            ? `<span class="section-count">${bugs.filter(b => b.line).length} inline bug${bugs.filter(b => b.line).length !== 1 ? "s" : ""}</span>`
+          ${inlineBugCount > 0
+            ? `<span class="section-count">${inlineBugCount} inline bug${inlineBugCount !== 1 ? "s" : ""} </span>`
             : ""}
         </div>
         <div class="section-body code-block-wrap">
@@ -112,10 +125,8 @@ export async function renderReview(container, reviewId, navigate) {
         </div>
       </div>
 
-      <!-- Two column: Bugs + Suggestions -->
+      <!-- Bugs -->
       <div class="review-two-col">
-
-        <!-- Bugs -->
         <div class="section-block">
           <div class="section-header">
             ⚠ &nbsp;Bugs
@@ -125,7 +136,7 @@ export async function renderReview(container, reviewId, navigate) {
             ${bugs.length === 0
               ? `<p class="no-bugs">✓ No bugs detected!</p>`
               : bugs.map(b => `
-                <div class="bug-item ${severityClass[b.severity] || ""}">
+                <div class="bug-item">
                   <div class="bug-meta">
                     <span class="severity-badge ${severityClass[b.severity] || ""}">${escHtml(b.severity)}</span>
                     ${b.line ? `<span class="bug-line-tag">Line ${b.line}</span>` : ""}
@@ -153,12 +164,11 @@ export async function renderReview(container, reviewId, navigate) {
                 </div>`).join("")}
           </div>
         </div>
-
       </div>
 
       <!-- Explanation -->
       <div class="section-block">
-        <div class="section-header">📖 &nbsp;Explanation</div>
+        <div class="section-header">&nbsp;Explanation</div>
         <div class="section-body">
           <p class="explanation-text">${escHtml(review.explanation)}</p>
         </div>
@@ -170,7 +180,7 @@ export async function renderReview(container, reviewId, navigate) {
           <strong>Have questions about this code?</strong>
           <span>Chat with AI to dig deeper into bugs, fixes, or how the code works.</span>
         </div>
-        <button class="btn btn-primary" id="chat-cta-btn">💬 Open Chat →</button>
+        <button class="btn btn-primary" id="chat-cta-btn">Open Chat →</button>
       </div>
 
     </div>
@@ -180,32 +190,45 @@ export async function renderReview(container, reviewId, navigate) {
   document.getElementById("chat-btn").addEventListener("click", () => navigate(`/chat/${reviewId}`));
   document.getElementById("chat-cta-btn").addEventListener("click", () => navigate(`/chat/${reviewId}`));
 
-  // Bug marker click — toggle popup
-  container.querySelectorAll(".bug-marker").forEach(btn => {
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const idx = btn.dataset.bug;
-      const popup = document.getElementById(`bug-popup-${idx}`);
-      const isOpen = popup.classList.contains("open");
+  // Click on buggy LINE (anywhere) → toggle popup
+  container.querySelectorAll(".code-line.has-bug").forEach(line => {
+    line.addEventListener("click", (e) => {
+      // Don't re-trigger if clicking close button
+      if (e.target.closest(".bug-popup-close")) return;
 
-      // Close all popups first
+      const bugIds = line.dataset.bugs?.split(",") || [];
+      const firstPopup = document.getElementById(`bug-popup-${bugIds[0]}`);
+      if (!firstPopup) return;
+
+      const isOpen = firstPopup.classList.contains("open");
+
+      // Close all
       container.querySelectorAll(".bug-popup.open").forEach(p => p.classList.remove("open"));
+      container.querySelectorAll(".code-line.active-bug").forEach(l => l.classList.remove("active-bug"));
 
-      if (!isOpen) popup.classList.add("open");
+      if (!isOpen) {
+        firstPopup.classList.add("open");
+        line.classList.add("active-bug");
+      }
     });
   });
 
-  // Close button inside popup
+  // Close button
   container.querySelectorAll(".bug-popup-close").forEach(btn => {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
-      document.getElementById(`bug-popup-${btn.dataset.bug}`)?.classList.remove("open");
+      const popup = document.getElementById(`bug-popup-${btn.dataset.bug}`);
+      popup?.classList.remove("open");
+      popup?.closest(".code-line")?.classList.remove("active-bug");
     });
   });
 
-  // Click outside closes popups
-  document.addEventListener("click", () => {
-    container.querySelectorAll(".bug-popup.open").forEach(p => p.classList.remove("open"));
+  // Click outside code block closes all
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".code-block-wrap")) {
+      container.querySelectorAll(".bug-popup.open").forEach(p => p.classList.remove("open"));
+      container.querySelectorAll(".code-line.active-bug").forEach(l => l.classList.remove("active-bug"));
+    }
   });
 }
 
