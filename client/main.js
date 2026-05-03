@@ -4,11 +4,13 @@ import "./main.css";
 import { renderHome } from "./pages/home.js";
 import { renderReview } from "./pages/review.js";
 import { renderHistory } from "./pages/history.js";
+import { renderChat } from "./pages/chat.js";
 
 function getRoute() {
   const path = window.location.pathname;
   if (path.startsWith("/review/")) return { name: "review", id: path.split("/")[2] };
-  if (path === "/history") return { name: "history" };
+  if (path.startsWith("/chat/"))   return { name: "chat",   id: path.split("/")[2] };
+  if (path === "/history")         return { name: "history" };
   return { name: "home" };
 }
 
@@ -24,13 +26,13 @@ function render() {
   app.innerHTML = `
     <header>
       <div class="container">
-        <div>
+        <div class="header-brand">
           <h1>Code Review Chatbot</h1>
           <p>AI-Powered Analysis</p>
         </div>
         <nav>
-          <button class="btn btn-sm" id="nav-home">Home</button>
-          <button class="btn btn-sm" id="nav-history">History</button>
+          <button class="btn btn-sm ${route.name === 'home' ? 'active' : ''}" id="nav-home">Home</button>
+          <button class="btn btn-sm ${route.name === 'history' ? 'active' : ''}" id="nav-history">History</button>
         </nav>
       </div>
     </header>
@@ -41,9 +43,10 @@ function render() {
   document.getElementById("nav-history").addEventListener("click", () => navigate("/history"));
 
   const page = document.getElementById("page");
-  if (route.name === "review") renderReview(page, route.id, navigate);
+  if      (route.name === "review")  renderReview(page, route.id, navigate);
+  else if (route.name === "chat")    renderChat(page, route.id, navigate);
   else if (route.name === "history") renderHistory(page, navigate);
-  else renderHome(page, navigate);
+  else                               renderHome(page, navigate);
 }
 
 window.addEventListener("popstate", render);
