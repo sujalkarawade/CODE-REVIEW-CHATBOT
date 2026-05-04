@@ -146,4 +146,47 @@ router.get("/:id/chat", (req, res) => {
   res.json(history);
 });
 
+// POST /api/reviews/:id/fix — generate fixed code
+router.post("/:id/fix", async (req, res) => {
+  try {
+    const review = reviews.get(parseInt(req.params.id));
+    if (!review) return res.status(404).json({ error: "Review not found" });
+
+    // Return cached fix if already generated
+    if (review.fixedCode) return res.json({ fixedCode: review.fixedCode });
+
+    const truncated = truncateCode(review.fileContent);
+    const bugsDesc = review.bugs.map((b, i) =>
+      `${i + 1}. Line ${b.line || "?"}: ${b.issue} — Fix: ${b.fix}`
+    ).join("\n");
+
+    const response = await invokeLLM({
+      messages: [
+        {
+          role: "system",
+          content: `You are a code fixer. Apply the listed bug fixes to the code and return ONLY the complete fixed code with no explanation, no markdown, no code fences.`,
+        },
+        {
+          role: "user",
+          content: `Fix the following bugs in this ${review.language} code:\n\nBugs to fix:\n${bugsDesc}\n\nOriginal code:\n${truncated}\n\nReturn only the fixed code.`,
+        },
+      ],
+      maxTokens: 2048,
+    });
+
+    let fixedCode = response?.choices?.[0]?.message?.content ?? "";
+    // Strip any accidental code fences
+    fixedCode = fixedCode.replace(/^```[\w]*\n?/i, "").replace(/\n?```$/i, "").trim();
+
+    // Cache it
+    review.fixedCode = fixedCode;
+    reviews.set(review.id, review);
+
+    res.json({ fixedCode });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

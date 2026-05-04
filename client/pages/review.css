@@ -477,3 +477,132 @@
   font-weight: 600;
   margin-bottom: 32px;
 }
+
+/* ── Severity Filter ── */
+.severity-filter {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.sev-filter-btn {
+  font-size: 0.62rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  padding: 3px 10px;
+  border: 2px solid currentColor;
+  cursor: pointer;
+  font-family: var(--font);
+  opacity: 0.35;
+  transition: opacity 0.1s;
+  background: transparent;
+}
+
+.sev-filter-btn.active { opacity: 1; }
+.sev-filter-btn.severity-critical { color: #c0392b; }
+.sev-filter-btn.severity-high     { color: #d35400; }
+.sev-filter-btn.severity-medium   { color: #b7950b; }
+.sev-filter-btn.severity-low      { color: #1a5276; }
+
+.sev-filter-count {
+  font-weight: 900;
+  margin-left: 3px;
+}
+
+/* ── Diff View ── */
+.diff-body {
+  overflow-x: auto;
+  background: var(--white);
+}
+
+.diff-loading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 24px 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--gray-600);
+}
+
+.diff-toolbar {
+  display: flex;
+  align-items: center;
+  border-bottom: 2px solid var(--black);
+  background: var(--gray-100);
+  padding: 0;
+}
+
+.diff-col-label {
+  flex: 1;
+  padding: 8px 16px;
+  font-size: 0.65rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--gray-600);
+  border-right: 2px solid var(--black);
+}
+
+.diff-toolbar .btn {
+  margin: 6px 10px;
+  flex-shrink: 0;
+}
+
+.diff-lines {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  line-height: 1.6;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.diff-row {
+  display: flex;
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.diff-row.diff-changed .diff-orig { background: rgba(192, 57, 43, 0.06); }
+.diff-row.diff-changed .diff-fixed { background: rgba(39, 174, 96, 0.06); }
+
+.diff-side {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.diff-divider {
+  width: 3px;
+  background: var(--black);
+  flex-shrink: 0;
+}
+
+.diff-ln {
+  min-width: 40px;
+  padding: 2px 10px 2px 6px;
+  color: var(--gray-400);
+  font-size: 0.68rem;
+  text-align: right;
+  user-select: none;
+  flex-shrink: 0;
+  border-right: 1px solid var(--gray-200);
+  margin-right: 12px;
+}
+
+.diff-code {
+  white-space: pre;
+  flex: 1;
+  padding: 2px 0;
+  overflow: hidden;
+}
+
+.diff-close-btn {
+  margin-left: auto !important;
+}
