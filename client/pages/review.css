@@ -478,39 +478,6 @@
   margin-bottom: 32px;
 }
 
-/* ── Severity Filter ── */
-.severity-filter {
-  display: flex;
-  gap: 6px;
-  margin-left: auto;
-  flex-wrap: wrap;
-}
-
-.sev-filter-btn {
-  font-size: 0.62rem;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  padding: 3px 10px;
-  border: 2px solid currentColor;
-  cursor: pointer;
-  font-family: var(--font);
-  opacity: 0.35;
-  transition: opacity 0.1s;
-  background: transparent;
-}
-
-.sev-filter-btn.active { opacity: 1; }
-.sev-filter-btn.severity-critical { color: #c0392b; }
-.sev-filter-btn.severity-high     { color: #d35400; }
-.sev-filter-btn.severity-medium   { color: #b7950b; }
-.sev-filter-btn.severity-low      { color: #1a5276; }
-
-.sev-filter-count {
-  font-weight: 900;
-  margin-left: 3px;
-}
-
 /* ── Diff View ── */
 .diff-body {
   overflow-x: auto;

@@ -8,15 +8,6 @@ const severityClass = {
   low: "severity-low",
 };
 
-const severityColor = {
-  critical: "#c0392b",
-  high:     "#d35400",
-  medium:   "#b7950b",
-  low:      "#1a5276",
-};
-
-const ALL_SEVERITIES = ["critical", "high", "medium", "low"];
-
 export async function renderReview(container, reviewId, navigate) {
   container.innerHTML = `<div class="analyzing-overlay"><div class="spinner"></div><p>Loading Review...</p></div>`;
 
@@ -52,57 +43,49 @@ export async function renderReview(container, reviewId, navigate) {
   const lines = highlighted.split("\n");
   const inlineBugCount = bugs.filter(b => b.line).length;
 
-  function buildCodeLines(activeSeverities) {
-    return lines.map((lineHtml, i) => {
-      const lineNum = i + 1;
-      const lineBugs = (bugsByLine[lineNum] || []).filter(b =>
-        activeSeverities.includes(b.severity)
-      );
-      const hasBug = lineBugs.length > 0;
-      const topBug = hasBug ? lineBugs[0] : null;
-      const lineClass = hasBug
-        ? `code-line has-bug ${severityClass[topBug.severity] || ""}`
-        : "code-line";
+  const codeLines = lines.map((lineHtml, i) => {
+    const lineNum = i + 1;
+    const lineBugs = bugsByLine[lineNum] || [];
+    const hasBug = lineBugs.length > 0;
+    const topBug = hasBug ? lineBugs[0] : null;
+    const lineClass = hasBug
+      ? `code-line has-bug ${severityClass[topBug.severity] || ""}`
+      : "code-line";
 
-      const badge = hasBug ? lineBugs.map(b =>
-        `<span class="bug-badge ${severityClass[b.severity]}" data-bug="${b.idx}" title="${escHtml(b.issue)}">
-          <span class="bug-badge-dot"></span>
-          <span class="bug-badge-label">${escHtml(b.severity[0].toUpperCase())}</span>
-        </span>`
-      ).join("") : "";
+    const badge = hasBug ? lineBugs.map(b =>
+      `<span class="bug-badge ${severityClass[b.severity]}" data-bug="${b.idx}" title="${escHtml(b.issue)}">
+        <span class="bug-badge-dot"></span>
+        <span class="bug-badge-label">${escHtml(b.severity[0].toUpperCase())}</span>
+      </span>`
+    ).join("") : "";
 
-      const popups = lineBugs.map(b =>
-        `<div class="bug-popup" id="bug-popup-${b.idx}">
-          <div class="bug-popup-top ${severityClass[b.severity]}">
-            <div class="bug-popup-top-left">
-              <span class="bug-popup-sev">${escHtml(b.severity.toUpperCase())}</span>
-              <span class="bug-popup-lineno">Line ${lineNum}</span>
-            </div>
-            <button class="bug-popup-close" data-bug="${b.idx}">✕</button>
+    const popups = lineBugs.map(b =>
+      `<div class="bug-popup" id="bug-popup-${b.idx}">
+        <div class="bug-popup-top ${severityClass[b.severity]}">
+          <div class="bug-popup-top-left">
+            <span class="bug-popup-sev">${escHtml(b.severity.toUpperCase())}</span>
+            <span class="bug-popup-lineno">Line ${lineNum}</span>
           </div>
-          <div class="bug-popup-body">
-            <p class="bug-popup-issue">${escHtml(b.issue)}</p>
-            <div class="bug-popup-fix">
-              <span class="bug-popup-fix-label">Fix</span>
-              <p>${escHtml(b.fix)}</p>
-            </div>
+          <button class="bug-popup-close" data-bug="${b.idx}">✕</button>
+        </div>
+        <div class="bug-popup-body">
+          <p class="bug-popup-issue">${escHtml(b.issue)}</p>
+          <div class="bug-popup-fix">
+            <span class="bug-popup-fix-label">Fix</span>
+            <p>${escHtml(b.fix)}</p>
           </div>
-        </div>`
-      ).join("");
+        </div>
+      </div>`
+    ).join("");
 
-      return `
-        <div class="${lineClass}" data-line="${lineNum}" ${hasBug ? `data-bugs="${lineBugs.map(b=>b.idx).join(',')}"` : ""}>
-          <span class="line-num">${lineNum}</span>
-          <span class="line-code">${lineHtml || " "}</span>
-          ${badge}
-          ${popups}
-        </div>`;
-    }).join("");
-  }
-
-  // Severity counts for filter badges
-  const sevCounts = {};
-  ALL_SEVERITIES.forEach(s => { sevCounts[s] = bugs.filter(b => b.severity === s).length; });
+    return `
+      <div class="${lineClass}" data-line="${lineNum}" ${hasBug ? `data-bugs="${lineBugs.map(b=>b.idx).join(',')}"` : ""}>
+        <span class="line-num">${lineNum}</span>
+        <span class="line-code">${lineHtml || " "}</span>
+        ${badge}
+        ${popups}
+      </div>`;
+  }).join("");
 
   container.innerHTML = `
     <div class="container review-page">
@@ -121,21 +104,13 @@ export async function renderReview(container, reviewId, navigate) {
       </div>
 
       <!-- Code Section -->
-      <div class="section-block" id="code-section">
+      <div class="section-block">
         <div class="section-header">
           ⌨ &nbsp;Code
           ${inlineBugCount > 0 ? `<span class="section-count">${inlineBugCount} inline bug${inlineBugCount !== 1 ? "s" : ""}</span>` : ""}
-          <!-- Severity Filter -->
-          <div class="severity-filter" id="severity-filter">
-            ${ALL_SEVERITIES.map(s => sevCounts[s] > 0 ? `
-              <button class="sev-filter-btn active ${severityClass[s]}" data-sev="${s}">
-                ${s} <span class="sev-filter-count">${sevCounts[s]}</span>
-              </button>` : ""
-            ).join("")}
-          </div>
         </div>
         <div class="section-body code-block-wrap" id="code-block-wrap">
-          <div class="code-lines" id="code-lines">${buildCodeLines(ALL_SEVERITIES)}</div>
+          <div class="code-lines">${codeLines}</div>
         </div>
       </div>
 
@@ -143,7 +118,7 @@ export async function renderReview(container, reviewId, navigate) {
       <div class="section-block hidden" id="diff-section">
         <div class="section-header">
           ⇄ &nbsp;Diff View — Original vs Fixed
-          <button class="btn btn-sm diff-close-btn" id="diff-close" style="margin-left:auto;border-color:rgba(255,255,255,0.4);color:#fff;background:transparent;">✕ Close</button>
+          <button class="btn btn-sm" id="diff-close" style="margin-left:auto;border-color:rgba(255,255,255,0.4);color:#fff;background:transparent;">✕ Close</button>
         </div>
         <div class="section-body diff-body" id="diff-body">
           <div class="diff-loading">
@@ -160,8 +135,18 @@ export async function renderReview(container, reviewId, navigate) {
             ⚠ &nbsp;Bugs
             <span class="section-count">${bugs.length}</span>
           </div>
-          <div class="section-body" id="bugs-list">
-            ${renderBugsList(bugs, bugs.map((_, i) => i))}
+          <div class="section-body">
+            ${bugs.length === 0
+              ? `<p class="no-bugs">✓ No bugs detected!</p>`
+              : bugs.map(b => `
+                <div class="bug-item">
+                  <div class="bug-meta">
+                    <span class="severity-badge ${severityClass[b.severity] || ""}">${escHtml(b.severity)}</span>
+                    ${b.line ? `<span class="bug-line-tag">Line ${b.line}</span>` : ""}
+                  </div>
+                  <p class="bug-issue">${escHtml(b.issue)}</p>
+                  <p class="bug-fix"><strong>Fix:</strong> ${escHtml(b.fix)}</p>
+                </div>`).join("")}
           </div>
         </div>
 
@@ -204,35 +189,9 @@ export async function renderReview(container, reviewId, navigate) {
     </div>
   `;
 
-  // ── Navigation ──
   document.getElementById("back-btn").addEventListener("click", () => navigate("/"));
   document.getElementById("chat-btn").addEventListener("click", () => navigate(`/chat/${reviewId}`));
   document.getElementById("chat-cta-btn").addEventListener("click", () => navigate(`/chat/${reviewId}`));
-
-  // ── Severity Filter ──
-  let activeSeverities = [...ALL_SEVERITIES];
-
-  container.querySelectorAll(".sev-filter-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const sev = btn.dataset.sev;
-      if (activeSeverities.includes(sev)) {
-        if (activeSeverities.length === 1) return; // keep at least one
-        activeSeverities = activeSeverities.filter(s => s !== sev);
-        btn.classList.remove("active");
-      } else {
-        activeSeverities.push(sev);
-        btn.classList.add("active");
-      }
-      // Re-render code lines
-      document.getElementById("code-lines").innerHTML = buildCodeLines(activeSeverities);
-      // Re-render bugs list
-      const visibleIdxs = bugs.map((b, i) => ({ b, i }))
-        .filter(({ b }) => activeSeverities.includes(b.severity))
-        .map(({ i }) => i);
-      document.getElementById("bugs-list").innerHTML = renderBugsList(bugs, visibleIdxs);
-      attachLineClickHandlers(container);
-    });
-  });
 
   // ── Diff View ──
   let diffLoaded = false;
@@ -286,7 +245,6 @@ export async function renderReview(container, reviewId, navigate) {
         <div class="diff-lines">${diffRows}</div>
       `;
 
-      // Copy fixed code button
       document.getElementById("copy-fixed-btn").addEventListener("click", () => {
         navigator.clipboard.writeText(data.fixedCode).then(() => {
           const btn = document.getElementById("copy-fixed-btn");
@@ -307,23 +265,6 @@ export async function renderReview(container, reviewId, navigate) {
 
   // ── Line click handlers ──
   attachLineClickHandlers(container);
-}
-
-function renderBugsList(bugs, visibleIdxs) {
-  if (bugs.length === 0) return `<p class="no-bugs">✓ No bugs detected!</p>`;
-  if (visibleIdxs.length === 0) return `<p class="no-bugs" style="color:var(--gray-400)">No bugs match the current filter.</p>`;
-  return visibleIdxs.map(i => {
-    const b = bugs[i];
-    return `
-      <div class="bug-item">
-        <div class="bug-meta">
-          <span class="severity-badge ${severityClass[b.severity] || ""}">${escHtml(b.severity)}</span>
-          ${b.line ? `<span class="bug-line-tag">Line ${b.line}</span>` : ""}
-        </div>
-        <p class="bug-issue">${escHtml(b.issue)}</p>
-        <p class="bug-fix"><strong>Fix:</strong> ${escHtml(b.fix)}</p>
-      </div>`;
-  }).join("");
 }
 
 function attachLineClickHandlers(container) {
@@ -356,7 +297,6 @@ function attachLineClickHandlers(container) {
     }
   });
 }
-
 
 function escHtml(str) {
   return String(str ?? "")
