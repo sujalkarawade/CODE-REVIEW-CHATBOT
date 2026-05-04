@@ -43,6 +43,9 @@ export async function renderReview(container, reviewId, navigate) {
   const lines = highlighted.split("\n");
   const inlineBugCount = bugs.filter(b => b.line).length;
 
+  const totalLines = lines.length;
+  const bugLineNums = bugs.filter(b => b.line).map(b => b.line);
+
   const codeLines = lines.map((lineHtml, i) => {
     const lineNum = i + 1;
     const lineBugs = bugsByLine[lineNum] || [];
@@ -108,6 +111,29 @@ export async function renderReview(container, reviewId, navigate) {
         <div class="section-header">
           ⌨ &nbsp;Code
           ${inlineBugCount > 0 ? `<span class="section-count">${inlineBugCount} inline bug${inlineBugCount !== 1 ? "s" : ""}</span>` : ""}
+        </div>
+        <div class="code-toolbar">
+          <div class="code-toolbar-left">
+            <span class="code-meta-item">
+              <span class="code-meta-label">Lines</span>
+              <span class="code-meta-val">${totalLines}</span>
+            </span>
+            <span class="code-meta-item">
+              <span class="code-meta-label">Language</span>
+              <span class="code-meta-val">${escHtml(review.language)}</span>
+            </span>
+            ${inlineBugCount > 0 ? `
+            <span class="code-meta-item code-meta-bugs">
+              <span class="code-meta-label">Bugs</span>
+              <span class="code-meta-val">${inlineBugCount} flagged</span>
+            </span>` : ""}
+          </div>
+          <div class="code-toolbar-right">
+            ${inlineBugCount > 0 ? `
+            <button class="code-tool-btn" id="code-prev-bug">↑ Prev Bug</button>
+            <button class="code-tool-btn" id="code-next-bug">↓ Next Bug</button>` : ""}
+            <button class="code-tool-btn" id="code-copy-btn">⎘ Copy</button>
+          </div>
         </div>
         <div class="section-body code-block-wrap" id="code-block-wrap">
           <div class="code-lines">${codeLines}</div>
@@ -193,6 +219,28 @@ export async function renderReview(container, reviewId, navigate) {
   document.getElementById("chat-btn").addEventListener("click", () => navigate(`/chat/${reviewId}`));
   document.getElementById("chat-cta-btn").addEventListener("click", () => navigate(`/chat/${reviewId}`));
 
+  // ── Code toolbar ──
+  let bugNavIdx = -1;
+
+  if (inlineBugCount > 0) {
+    document.getElementById("code-next-bug")?.addEventListener("click", () => {
+      bugNavIdx = (bugNavIdx + 1) % bugLineNums.length;
+      jumpToBugLine(bugLineNums[bugNavIdx]);
+    });
+    document.getElementById("code-prev-bug")?.addEventListener("click", () => {
+      bugNavIdx = (bugNavIdx - 1 + bugLineNums.length) % bugLineNums.length;
+      jumpToBugLine(bugLineNums[bugNavIdx]);
+    });
+  }
+
+  document.getElementById("code-copy-btn")?.addEventListener("click", () => {
+    navigator.clipboard.writeText(review.fileContent).then(() => {
+      const btn = document.getElementById("code-copy-btn");
+      btn.textContent = "✓ Copied!";
+      setTimeout(() => { btn.textContent = "⎘ Copy"; }, 2000);
+    });
+  });
+
   // ── Diff View ──
   let diffLoaded = false;
 
@@ -215,43 +263,120 @@ export async function renderReview(container, reviewId, navigate) {
       const fixedHl = hljs.highlightAuto(data.fixedCode || "").value.split("\n");
 
       const maxLen = Math.max(origLines.length, fixedLines.length);
-      let diffRows = "";
+
+      // Compute diff stats
+      let added = 0, removed = 0, modified = 0;
+      const diffData = [];
       for (let i = 0; i < maxLen; i++) {
-        const orig = origLines[i] ?? "";
-        const fixed = fixedLines[i] ?? "";
-        const origH = origHl[i] ?? "";
-        const fixedH = fixedHl[i] ?? "";
-        const changed = orig !== fixed;
-        diffRows += `
-          <div class="diff-row ${changed ? "diff-changed" : ""}">
-            <div class="diff-side diff-orig">
-              <span class="diff-ln">${i + 1}</span>
-              <span class="diff-code">${origH || " "}</span>
-            </div>
-            <div class="diff-divider"></div>
-            <div class="diff-side diff-fixed">
-              <span class="diff-ln">${i + 1}</span>
-              <span class="diff-code">${fixedH || " "}</span>
-            </div>
-          </div>`;
+        const orig = origLines[i] ?? null;
+        const fixed = fixedLines[i] ?? null;
+        let type = "same";
+        if (orig === null) { type = "added"; added++; }
+        else if (fixed === null) { type = "removed"; removed++; }
+        else if (orig !== fixed) { type = "modified"; modified++; }
+        diffData.push({ i, orig, fixed, origH: origHl[i] ?? "", fixedH: fixedHl[i] ?? "", type });
+      }
+
+      let showChangedOnly = false;
+
+      function renderDiffRows(changedOnly) {
+        return diffData
+          .filter(d => !changedOnly || d.type !== "same")
+          .map(d => {
+            const lineNum = d.i + 1;
+            const typeClass = `diff-${d.type}`;
+            const origSymbol = d.type === "added" ? "" : d.type === "removed" ? "−" : d.type === "modified" ? "~" : "";
+            const fixedSymbol = d.type === "removed" ? "" : d.type === "added" ? "+" : d.type === "modified" ? "+" : "";
+            return `
+              <div class="diff-row ${typeClass}" data-line="${lineNum}">
+                <div class="diff-side diff-orig">
+                  <span class="diff-gutter ${d.type !== "added" ? "diff-gutter-" + d.type : ""}">${origSymbol}</span>
+                  <span class="diff-ln">${d.type !== "added" ? lineNum : ""}</span>
+                  <span class="diff-code">${d.type !== "added" ? (d.origH || " ") : ""}</span>
+                </div>
+                <div class="diff-divider"></div>
+                <div class="diff-side diff-fixed">
+                  <span class="diff-gutter ${d.type !== "removed" ? "diff-gutter-" + (d.type === "modified" ? "added" : d.type) : ""}">${fixedSymbol}</span>
+                  <span class="diff-ln">${d.type !== "removed" ? lineNum : ""}</span>
+                  <span class="diff-code">${d.type !== "removed" ? (d.fixedH || " ") : ""}</span>
+                </div>
+              </div>`;
+          }).join("");
+      }
+
+      // Change navigation
+      const changeLines = diffData.filter(d => d.type !== "same").map(d => d.i + 1);
+      let changeIdx = -1;
+
+      function jumpToChange(dir) {
+        if (!changeLines.length) return;
+        changeIdx = (changeIdx + dir + changeLines.length) % changeLines.length;
+        const target = document.querySelector(`.diff-row[data-line="${changeLines[changeIdx]}"]`);
+        target?.scrollIntoView({ behavior: "smooth", block: "center" });
+        document.querySelectorAll(".diff-row.jump-highlight").forEach(r => r.classList.remove("jump-highlight"));
+        target?.classList.add("jump-highlight");
       }
 
       document.getElementById("diff-body").innerHTML = `
-        <div class="diff-toolbar">
-          <div class="diff-col-label">Original</div>
-          <div class="diff-col-label">Fixed</div>
-          <button class="btn btn-sm" id="copy-fixed-btn">⎘ Copy Fixed Code</button>
+        <div class="diff-stats-bar">
+          <div class="diff-stat diff-stat-modified">
+            <span class="diff-stat-icon">~</span>
+            <span>${modified} modified</span>
+          </div>
+          <div class="diff-stat diff-stat-added">
+            <span class="diff-stat-icon">+</span>
+            <span>${added} added</span>
+          </div>
+          <div class="diff-stat diff-stat-removed">
+            <span class="diff-stat-icon">−</span>
+            <span>${removed} removed</span>
+          </div>
+          <div class="diff-stat-spacer"></div>
+          <span class="diff-total-lines">${maxLen} lines total</span>
         </div>
-        <div class="diff-lines">${diffRows}</div>
+
+        <div class="diff-toolbar">
+          <div class="diff-col-header">
+            <span class="diff-col-tag diff-col-tag-orig">ORIGINAL</span>
+            <span class="diff-col-filename">${escHtml(review.fileName)}</span>
+          </div>
+          <div class="diff-col-header">
+            <span class="diff-col-tag diff-col-tag-fixed">FIXED</span>
+            <span class="diff-col-filename">${escHtml(review.fileName)}</span>
+          </div>
+          <div class="diff-toolbar-actions">
+            <button class="btn btn-sm" id="diff-prev-btn" title="Previous change">↑ Prev</button>
+            <button class="btn btn-sm" id="diff-next-btn" title="Next change">↓ Next</button>
+            <button class="btn btn-sm" id="diff-toggle-btn">Show Changes Only</button>
+            <button class="btn btn-primary btn-sm" id="copy-fixed-btn">⎘ Copy Fixed</button>
+          </div>
+        </div>
+
+        <div class="diff-lines" id="diff-lines">
+          ${renderDiffRows(false)}
+        </div>
       `;
+
+      document.getElementById("diff-prev-btn").addEventListener("click", () => jumpToChange(-1));
+      document.getElementById("diff-next-btn").addEventListener("click", () => jumpToChange(1));
+
+      document.getElementById("diff-toggle-btn").addEventListener("click", () => {
+        showChangedOnly = !showChangedOnly;
+        document.getElementById("diff-lines").innerHTML = renderDiffRows(showChangedOnly);
+        document.getElementById("diff-toggle-btn").textContent = showChangedOnly ? "Show All Lines" : "Show Changes Only";
+        changeIdx = -1;
+      });
 
       document.getElementById("copy-fixed-btn").addEventListener("click", () => {
         navigator.clipboard.writeText(data.fixedCode).then(() => {
           const btn = document.getElementById("copy-fixed-btn");
           btn.textContent = "✓ Copied!";
-          setTimeout(() => { btn.textContent = "⎘ Copy Fixed Code"; }, 2000);
+          setTimeout(() => { btn.textContent = "⎘ Copy Fixed"; }, 2000);
         });
       });
+
+      // Auto-jump to first change
+      if (changeLines.length) setTimeout(() => jumpToChange(1), 300);
 
     } catch (err) {
       document.getElementById("diff-body").innerHTML = `
@@ -265,6 +390,15 @@ export async function renderReview(container, reviewId, navigate) {
 
   // ── Line click handlers ──
   attachLineClickHandlers(container);
+}
+
+function jumpToBugLine(lineNum) {
+  const target = document.querySelector(`.code-line[data-line="${lineNum}"]`);
+  if (!target) return;
+  target.scrollIntoView({ behavior: "smooth", block: "center" });
+  document.querySelectorAll(".code-line.jump-highlight").forEach(l => l.classList.remove("jump-highlight"));
+  target.classList.add("jump-highlight");
+  setTimeout(() => target.classList.remove("jump-highlight"), 1800);
 }
 
 function attachLineClickHandlers(container) {
