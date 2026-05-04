@@ -20,12 +20,38 @@ function detectLanguage(fileName) {
   return map[ext] || ext || "text";
 }
 
+function safeParseJSON(text) {
+  let cleaned = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+
+  // Extract first JSON object in case there's surrounding text
+  const match = cleaned.match(/\{[\s\S]*\}/);
+  if (match) cleaned = match[0];
+
+  // Try direct parse
+  try { return JSON.parse(cleaned); } catch (_) {}
+
+  // Fix common LLM issues: unescaped backslashes, control chars, trailing commas
+  const fixed = cleaned
+    .replace(/[\u0000-\u001F\u007F]/g, " ")
+    .replace(/\\(?!["\\/bfnrtu])/g, "\\\\")
+    .replace(/,\s*([}\]])/g, "$1");
+
+  try { return JSON.parse(fixed); } catch (err) {
+    throw new Error(`JSON parse failed: ${err.message} — Raw response: ${text.slice(0, 300)}`);
+  }
+}
+
 async function analyzeCode(code, language) {
   const truncated = truncateCode(code);
 
-  const systemPrompt = `You are a code reviewer. Analyze the code and respond with ONLY a JSON object (no markdown, no explanation outside JSON):
-{"bugs":[{"severity":"critical|high|medium|low","line":1,"issue":"...","fix":"..."}],"suggestions":[{"category":"...","suggestion":"...","benefit":"..."}],"explanation":"2-3 sentence summary of what the code does"}
-Keep bugs and suggestions to the most important ones only (max 5 each).`;
+  const systemPrompt = `You are a code reviewer. Respond with ONLY a valid JSON object, no markdown, no code fences, no extra text.
+Required structure:
+{"bugs":[{"severity":"critical","line":1,"issue":"plain text description","fix":"plain text fix"}],"suggestions":[{"category":"Performance","suggestion":"plain text suggestion","benefit":"plain text benefit"}],"explanation":"plain text 2-3 sentence summary"}
+Rules:
+- severity: critical, high, medium, or low only
+- line: integer line number, omit if unknown
+- max 5 bugs, max 5 suggestions
+- string values must be plain text only — no backticks, no code, no backslashes, no quotes inside values`;
 
   const response = await invokeLLM({
     messages: [
@@ -33,11 +59,11 @@ Keep bugs and suggestions to the most important ones only (max 5 each).`;
       { role: "user", content: `Analyze this ${language} code:\n\`\`\`${language}\n${truncated}\n\`\`\`` },
     ],
     maxTokens: 1024,
+    responseFormat: { type: "json_object" },
   });
 
   const content = response?.choices?.[0]?.message?.content ?? "";
-  const cleaned = content.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
-  return JSON.parse(cleaned);
+  return safeParseJSON(content);
 }
 
 // POST /api/reviews — upload & analyze
