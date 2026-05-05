@@ -1,9 +1,17 @@
 import "./chat.css";
 
-export async function renderChat(container, reviewId, navigate) {
-  container.innerHTML = `<div class="analyzing-overlay"><div class="spinner"></div><p>Loading Chat...</p></div>`;
+const QUICK_PROMPTS = [
+  { icon: "🐛", label: "Critical bugs",   msg: "What are the most critical bugs in this code?" },
+  { icon: "⚡", label: "Performance",     msg: "How can I improve the performance of this code?" },
+  { icon: "🔒", label: "Security",        msg: "Are there any security vulnerabilities?" },
+  { icon: "📖", label: "Explain code",    msg: "Explain what this code does in simple terms." },
+  { icon: "✅", label: "Best practices",  msg: "What best practices am I violating?" },
+  { icon: "🧪", label: "How to test",     msg: "How should I write tests for this code?" },
+];
 
-  // Load review info for context header
+export async function renderChat(container, reviewId, navigate) {
+  container.innerHTML = `<div class="analyzing-overlay"><div class="spinner"></div><p>Loading...</p></div>`;
+
   let review;
   try {
     const res = await fetch(`/api/reviews/${reviewId}`);
@@ -20,67 +28,157 @@ export async function renderChat(container, reviewId, navigate) {
     return;
   }
 
+  const bugs = Array.isArray(review.bugs) ? review.bugs : [];
+  const criticalCount = bugs.filter(b => b.severity === "critical").length;
+
   container.innerHTML = `
-    <div class="chat-page">
+    <div class="chat-layout">
 
-      <!-- Chat Header Bar -->
-      <div class="chat-page-header">
-        <div class="chat-page-header-left">
-          <button class="btn btn-sm" id="back-to-review">← Back to Review</button>
-          <div class="chat-context-info">
-            <span class="chat-context-file">${escHtml(review.fileName)}</span>
-            <span class="chat-context-lang">${escHtml(review.language)}</span>
+      <!-- LEFT: Context Panel -->
+      <aside class="chat-sidebar">
+        <div class="chat-sidebar-header">
+          <button class="btn btn-sm" id="back-btn">← Review</button>
+        </div>
+
+        <div class="chat-sidebar-file">
+          <div class="chat-sidebar-filename">${escHtml(review.fileName)}</div>
+          <div class="chat-sidebar-lang">${escHtml(review.language)}</div>
+        </div>
+
+        <div class="chat-sidebar-stats">
+          <div class="chat-stat">
+            <span class="chat-stat-num">${bugs.length}</span>
+            <span class="chat-stat-label">Bugs</span>
+          </div>
+          <div class="chat-stat-div"></div>
+          <div class="chat-stat">
+            <span class="chat-stat-num ${criticalCount > 0 ? "chat-stat-critical" : ""}">${criticalCount}</span>
+            <span class="chat-stat-label">Critical</span>
+          </div>
+          <div class="chat-stat-div"></div>
+          <div class="chat-stat">
+            <span class="chat-stat-num">${(review.fileContent || "").split("\n").length}</span>
+            <span class="chat-stat-label">Lines</span>
           </div>
         </div>
-        <div class="chat-page-title">💬 Chat with AI</div>
-      </div>
 
-      <!-- Messages -->
-      <div class="chat-page-messages" id="chat-messages">
-        <div class="chat-welcome">
-          <div class="chat-welcome-icon">🤖</div>
-          <h3>Ask me anything about <strong>${escHtml(review.fileName)}</strong></h3>
-          <p>I've already analyzed your code. Ask about bugs, improvements, how it works, or anything else.</p>
-          <div class="chat-suggestions">
-            <button class="chat-suggestion-chip" data-msg="What are the most critical issues in this code?">What are the most critical issues?</button>
-            <button class="chat-suggestion-chip" data-msg="How can I improve the performance of this code?">How to improve performance?</button>
-            <button class="chat-suggestion-chip" data-msg="Explain what this code does in simple terms.">Explain this code simply</button>
-            <button class="chat-suggestion-chip" data-msg="Are there any security vulnerabilities?">Any security issues?</button>
+        <div class="chat-sidebar-section">
+          <div class="chat-sidebar-section-title">Quick Ask</div>
+          <div class="chat-quick-list">
+            ${QUICK_PROMPTS.map(p => `
+              <button class="chat-quick-btn" data-msg="${escHtml(p.msg)}">
+                <span class="chat-quick-icon">${p.icon}</span>
+                <span class="chat-quick-label">${p.label}</span>
+                <span class="chat-quick-arrow">→</span>
+              </button>`).join("")}
           </div>
         </div>
-      </div>
 
-      <!-- Input -->
-      <div class="chat-page-input-area">
-        <div class="chat-page-input-wrap">
-          <input type="text" id="chat-input" placeholder="Ask about this code..." autocomplete="off" />
-          <button class="btn btn-primary" id="chat-send">
-            <span id="send-label">Send</span>
-          </button>
+        ${review.explanation ? `
+        <div class="chat-sidebar-section">
+          <div class="chat-sidebar-section-title">Summary</div>
+          <p class="chat-sidebar-summary">${escHtml(review.explanation)}</p>
+        </div>` : ""}
+      </aside>
+
+      <!-- RIGHT: Chat Panel -->
+      <div class="chat-panel">
+
+        <!-- Chat Topbar -->
+        <div class="chat-topbar">
+          <div class="chat-topbar-info">
+            <span class="chat-online-dot"></span>
+            <span class="chat-topbar-title">AI Code Assistant</span>
+          </div>
+          <div class="chat-topbar-actions">
+            <button class="chat-action-btn" id="clear-btn" title="Clear chat">⊘ Clear</button>
+          </div>
         </div>
-        <p class="chat-hint">Press Enter to send · Shift+Enter for new line</p>
-      </div>
 
+        <!-- Messages -->
+        <div class="chat-messages" id="chat-messages">
+          <div class="chat-welcome-msg" id="chat-welcome">
+            <div class="chat-welcome-avatar">AI</div>
+            <div class="chat-welcome-content">
+              <p class="chat-welcome-title">Hello! I've analyzed <strong>${escHtml(review.fileName)}</strong></p>
+              <p class="chat-welcome-sub">Found ${bugs.length} bug${bugs.length !== 1 ? "s" : ""}${criticalCount > 0 ? ` (${criticalCount} critical)` : ""}. Ask me anything about the code.</p>
+              <div class="chat-welcome-chips">
+                ${QUICK_PROMPTS.slice(0, 3).map(p => `
+                  <button class="chat-welcome-chip" data-msg="${escHtml(p.msg)}">${p.icon} ${p.label}</button>
+                `).join("")}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Input -->
+        <div class="chat-input-section">
+          <div class="chat-input-box" id="chat-input-box">
+            <input
+              type="text"
+              id="chat-input"
+              placeholder="Ask anything about this code..."
+              autocomplete="off"
+              maxlength="500"
+            />
+            <div class="chat-input-right">
+              <span class="chat-char-count" id="char-count">0/500</span>
+              <button class="chat-send-btn" id="chat-send" title="Send (Enter)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="22" y1="2" x2="11" y2="13"></line>
+                  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="chat-input-footer">
+            <span>↵ Enter to send</span>
+            <span class="chat-input-footer-right">AI may make mistakes — verify important info</span>
+          </div>
+        </div>
+
+      </div>
     </div>
   `;
 
-  document.getElementById("back-to-review").addEventListener("click", () => navigate(`/review/${reviewId}`));
+  document.getElementById("back-btn").addEventListener("click", () => navigate(`/review/${reviewId}`));
 
-  // Load existing history
+  document.getElementById("clear-btn").addEventListener("click", () => {
+    const msgs = document.getElementById("chat-messages");
+    msgs.innerHTML = `<div class="chat-divider-msg">Chat cleared</div>`;
+  });
+
   await loadChatHistory(reviewId);
 
   const chatInput = document.getElementById("chat-input");
   const chatSend = document.getElementById("chat-send");
+  const charCount = document.getElementById("char-count");
+
+  chatInput.addEventListener("input", () => {
+    const len = chatInput.value.length;
+    charCount.textContent = `${len}/500`;
+    charCount.classList.toggle("chat-char-warn", len > 400);
+  });
 
   chatSend.addEventListener("click", () => sendMessage(reviewId));
   chatInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(reviewId); }
   });
 
-  // Suggestion chips
-  container.querySelectorAll(".chat-suggestion-chip").forEach(chip => {
+  // Sidebar quick prompts
+  container.querySelectorAll(".chat-quick-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      chatInput.value = btn.dataset.msg;
+      charCount.textContent = `${chatInput.value.length}/500`;
+      sendMessage(reviewId);
+    });
+  });
+
+  // Welcome chips
+  container.querySelectorAll(".chat-welcome-chip").forEach(chip => {
     chip.addEventListener("click", () => {
       chatInput.value = chip.dataset.msg;
+      charCount.textContent = `${chatInput.value.length}/500`;
       sendMessage(reviewId);
     });
   });
@@ -93,10 +191,8 @@ async function loadChatHistory(reviewId) {
     const res = await fetch(`/api/reviews/${reviewId}/chat`);
     const history = await res.json();
     if (history.length > 0) {
-      // Hide welcome screen
-      const welcome = document.querySelector(".chat-welcome");
-      if (welcome) welcome.remove();
-      history.forEach(m => appendBubble(m.role, m.content));
+      document.getElementById("chat-welcome")?.remove();
+      history.forEach(m => appendBubble(m.role, m.content, new Date(m.createdAt)));
     }
   } catch { /* ignore */ }
 }
@@ -104,14 +200,14 @@ async function loadChatHistory(reviewId) {
 async function sendMessage(reviewId) {
   const input = document.getElementById("chat-input");
   const sendBtn = document.getElementById("chat-send");
+  const charCount = document.getElementById("char-count");
   const message = input.value.trim();
   if (!message) return;
 
-  // Hide welcome on first message
-  const welcome = document.querySelector(".chat-welcome");
-  if (welcome) welcome.remove();
+  document.getElementById("chat-welcome")?.remove();
 
   input.value = "";
+  charCount.textContent = "0/500";
   input.disabled = true;
   sendBtn.disabled = true;
 
@@ -129,7 +225,7 @@ async function sendMessage(reviewId) {
     appendBubble("assistant", data.message || data.error || "No response.");
   } catch {
     removeTyping();
-    appendBubble("assistant", "Error sending message. Please try again.");
+    appendBubble("assistant", "Connection error. Please try again.");
   } finally {
     input.disabled = false;
     sendBtn.disabled = false;
@@ -137,26 +233,60 @@ async function sendMessage(reviewId) {
   }
 }
 
-function appendBubble(role, content) {
+function formatMessage(text) {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    // **bold**
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    // *italic*
+    .replace(/\*(.+?)\*/g, "<em>$1</em>")
+    // `inline code`
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    // newlines
+    .replace(/\n/g, "<br>");
+}
+
+function appendBubble(role, content, date = new Date()) {
   const messagesEl = document.getElementById("chat-messages");
+  const timeStr = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
   const row = document.createElement("div");
-  row.className = `chat-row ${role}`;
+  row.className = `chat-msg-row ${role}`;
 
-  const avatar = document.createElement("div");
-  avatar.className = "chat-avatar";
-  avatar.textContent = role === "user" ? "U" : "AI";
+  if (role === "assistant") {
+    const avatar = document.createElement("div");
+    avatar.className = "chat-msg-avatar";
+    avatar.textContent = "AI";
+    row.appendChild(avatar);
+  }
+
+  const wrap = document.createElement("div");
+  wrap.className = "chat-msg-wrap";
 
   const bubble = document.createElement("div");
-  bubble.className = `chat-bubble ${role}`;
-  bubble.textContent = content;
+  bubble.className = `chat-msg-bubble ${role}`;
+
+  if (role === "assistant") {
+    bubble.innerHTML = formatMessage(content);
+  } else {
+    bubble.textContent = content;
+  }
+
+  const meta = document.createElement("div");
+  meta.className = "chat-msg-meta";
+  meta.innerHTML = `<span class="chat-msg-time">${timeStr}</span>`;
+
+  wrap.appendChild(bubble);
+  wrap.appendChild(meta);
+  row.appendChild(wrap);
 
   if (role === "user") {
-    row.appendChild(bubble);
+    const avatar = document.createElement("div");
+    avatar.className = "chat-msg-avatar user";
+    avatar.textContent = "You";
     row.appendChild(avatar);
-  } else {
-    row.appendChild(avatar);
-    row.appendChild(bubble);
   }
 
   messagesEl.appendChild(row);
@@ -166,11 +296,15 @@ function appendBubble(role, content) {
 function showTyping() {
   const messagesEl = document.getElementById("chat-messages");
   const row = document.createElement("div");
-  row.className = "chat-row assistant";
+  row.className = "chat-msg-row assistant";
   row.id = "typing-indicator";
   row.innerHTML = `
-    <div class="chat-avatar">AI</div>
-    <div class="chat-typing"><div class="typing-dots"><span></span><span></span><span></span></div></div>
+    <div class="chat-msg-avatar">AI</div>
+    <div class="chat-msg-wrap">
+      <div class="chat-msg-bubble assistant typing-bubble">
+        <div class="typing-dots"><span></span><span></span><span></span></div>
+      </div>
+    </div>
   `;
   messagesEl.appendChild(row);
   messagesEl.scrollTop = messagesEl.scrollHeight;

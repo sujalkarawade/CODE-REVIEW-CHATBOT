@@ -102,7 +102,7 @@ export async function renderReview(container, reviewId, navigate) {
         <div class="review-actions">
           <button class="btn btn-sm" id="back-btn">← Home</button>
           <button class="btn btn-sm" id="diff-btn">⇄ Diff View</button>
-          <button class="btn btn-primary" id="chat-btn">💬 Chat</button>
+          <button class="btn btn-primary" id="chat-btn">Chat</button>
         </div>
       </div>
 
@@ -197,7 +197,7 @@ export async function renderReview(container, reviewId, navigate) {
 
       <!-- Explanation -->
       <div class="section-block">
-        <div class="section-header">📖 &nbsp;Explanation</div>
+        <div class="section-header">&nbsp;Explanation</div>
         <div class="section-body">
           <p class="explanation-text">${escHtml(review.explanation)}</p>
         </div>
@@ -209,7 +209,7 @@ export async function renderReview(container, reviewId, navigate) {
           <strong>Have questions about this code?</strong>
           <span>Chat with AI to dig deeper into bugs, fixes, or how the code works.</span>
         </div>
-        <button class="btn btn-primary" id="chat-cta-btn">💬 Open Chat →</button>
+        <button class="btn btn-primary" id="chat-cta-btn">Open Chat →</button>
       </div>
 
     </div>
