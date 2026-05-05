@@ -102,6 +102,13 @@ export async function renderReview(container, reviewId, navigate) {
         <div class="review-actions">
           <button class="btn btn-sm" id="back-btn">← Home</button>
           <button class="btn btn-sm" id="diff-btn">⇄ Diff View</button>
+          <div class="download-dropdown" id="download-dropdown">
+            <button class="btn btn-sm" id="download-btn">↓ Export</button>
+            <div class="download-menu" id="download-menu">
+              <button class="download-option" id="export-md">📄 Markdown (.md)</button>
+              <button class="download-option" id="export-pdf">🖨 PDF (Print)</button>
+            </div>
+          </div>
           <button class="btn btn-primary" id="chat-btn">Chat</button>
         </div>
       </div>
@@ -218,6 +225,36 @@ export async function renderReview(container, reviewId, navigate) {
   document.getElementById("back-btn").addEventListener("click", () => navigate("/"));
   document.getElementById("chat-btn").addEventListener("click", () => navigate(`/chat/${reviewId}`));
   document.getElementById("chat-cta-btn").addEventListener("click", () => navigate(`/chat/${reviewId}`));
+
+  // ── Download dropdown toggle ──
+  const downloadBtn = document.getElementById("download-btn");
+  const downloadMenu = document.getElementById("download-menu");
+
+  downloadBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    downloadMenu.classList.toggle("open");
+  });
+
+  document.addEventListener("click", () => downloadMenu.classList.remove("open"));
+
+  // ── Export as Markdown ──
+  document.getElementById("export-md").addEventListener("click", () => {
+    downloadMenu.classList.remove("open");
+    const md = generateMarkdown(review, bugs, suggestions);
+    const blob = new Blob([md], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `review-${review.fileName.replace(/[^a-z0-9]/gi, "-")}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // ── Export as PDF ──
+  document.getElementById("export-pdf").addEventListener("click", () => {
+    downloadMenu.classList.remove("open");
+    printReview(review, bugs, suggestions);
+  });
 
   // ── Code toolbar ──
   let bugNavIdx = -1;
@@ -430,6 +467,121 @@ function attachLineClickHandlers(container) {
       container.querySelectorAll(".code-line.active-bug").forEach(l => l.classList.remove("active-bug"));
     }
   });
+}
+
+function generateMarkdown(review, bugs, suggestions) {
+  const date = new Date(review.createdAt).toLocaleString();
+  const sevIcon = { critical: "🔴", high: "🟠", medium: "🟡", low: "🔵" };
+
+  let md = `# Code Review Report\n\n`;
+  md += `| | |\n|---|---|\n`;
+  md += `| **File** | \`${review.fileName}\` |\n`;
+  md += `| **Language** | ${review.language} |\n`;
+  md += `| **Date** | ${date} |\n`;
+  md += `| **Bugs** | ${bugs.length} |\n`;
+  md += `| **Suggestions** | ${suggestions.length} |\n\n`;
+  md += `---\n\n`;
+
+  md += `## Summary\n\n${review.explanation || "No summary available."}\n\n`;
+  md += `---\n\n`;
+
+  if (bugs.length > 0) {
+    md += `## Bugs (${bugs.length})\n\n`;
+    bugs.forEach((b, i) => {
+      md += `### ${i + 1}. ${sevIcon[b.severity] || "⚠"} ${b.severity.toUpperCase()}${b.line ? ` — Line ${b.line}` : ""}\n\n`;
+      md += `**Issue:** ${b.issue}\n\n`;
+      md += `**Fix:** ${b.fix}\n\n`;
+    });
+    md += `---\n\n`;
+  }
+
+  if (suggestions.length > 0) {
+    md += `## Suggestions (${suggestions.length})\n\n`;
+    suggestions.forEach((s, i) => {
+      md += `### ${i + 1}. ${s.category}\n\n`;
+      md += `${s.suggestion}\n\n`;
+      md += `**Benefit:** ${s.benefit}\n\n`;
+    });
+    md += `---\n\n`;
+  }
+
+  md += `## Source Code\n\n\`\`\`${review.language}\n${review.fileContent}\n\`\`\`\n`;
+
+  return md;
+}
+
+function printReview(review, bugs, suggestions) {
+  const date = new Date(review.createdAt).toLocaleString();
+  const sevColor = { critical: "#c0392b", high: "#d35400", medium: "#b7950b", low: "#1a5276" };
+  const sevBg    = { critical: "#fdf0ef", high: "#fef5ec", medium: "#fefdf0", low: "#eaf4fb" };
+
+  const bugsHtml = bugs.length === 0
+    ? `<p style="color:#27ae60;font-weight:700;">✓ No bugs detected</p>`
+    : bugs.map((b, i) => `
+        <div style="margin-bottom:16px;padding:14px;border-left:4px solid ${sevColor[b.severity]};background:${sevBg[b.severity]};">
+          <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
+            <span style="font-size:0.7rem;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:${sevColor[b.severity]};border:2px solid ${sevColor[b.severity]};padding:2px 8px;">${b.severity}</span>
+            ${b.line ? `<span style="font-size:0.75rem;font-weight:700;color:#888;font-family:monospace;">Line ${b.line}</span>` : ""}
+          </div>
+          <p style="font-weight:700;margin-bottom:6px;">${b.issue}</p>
+          <p style="font-size:0.9rem;color:#555;"><strong>Fix:</strong> ${b.fix}</p>
+        </div>`).join("");
+
+  const suggestionsHtml = suggestions.length === 0
+    ? `<p style="color:#555;font-weight:700;">No suggestions.</p>`
+    : suggestions.map(s => `
+        <div style="margin-bottom:14px;padding:14px;border-left:4px solid #555;background:#f9f9f9;">
+          <span style="font-size:0.65rem;font-weight:900;text-transform:uppercase;letter-spacing:1px;background:#555;color:#fff;padding:2px 8px;display:inline-block;margin-bottom:8px;">${s.category}</span>
+          <p style="font-weight:700;margin-bottom:6px;">${s.suggestion}</p>
+          <p style="font-size:0.9rem;color:#555;"><strong>Benefit:</strong> ${s.benefit}</p>
+        </div>`).join("");
+
+  const win = window.open("", "_blank");
+  win.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Code Review — ${review.fileName}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', system-ui, sans-serif; color: #0a0a0a; padding: 40px; max-width: 900px; margin: 0 auto; }
+    h1 { font-size: 1.8rem; font-weight: 900; text-transform: uppercase; letter-spacing: -1px; margin-bottom: 6px; }
+    h2 { font-size: 1rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; background: #0a0a0a; color: #fff; padding: 8px 14px; margin: 32px 0 16px; }
+    .meta { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 32px; padding-bottom: 20px; border-bottom: 3px solid #0a0a0a; }
+    .meta-item { display: flex; flex-direction: column; gap: 2px; }
+    .meta-label { font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #999; }
+    .meta-val { font-size: 0.9rem; font-weight: 700; font-family: monospace; }
+    .explanation { font-size: 0.95rem; line-height: 1.7; color: #555; padding: 16px; background: #f9f9f9; border-left: 4px solid #0a0a0a; margin-bottom: 8px; }
+    pre { background: #f5f5f5; padding: 20px; font-family: monospace; font-size: 0.8rem; line-height: 1.6; overflow-x: auto; white-space: pre-wrap; word-break: break-all; border: 2px solid #e0e0e0; }
+    @media print { body { padding: 20px; } }
+  </style>
+</head>
+<body>
+  <h1>Code Review Report</h1>
+  <div class="meta">
+    <div class="meta-item"><span class="meta-label">File</span><span class="meta-val">${review.fileName}</span></div>
+    <div class="meta-item"><span class="meta-label">Language</span><span class="meta-val">${review.language}</span></div>
+    <div class="meta-item"><span class="meta-label">Date</span><span class="meta-val">${date}</span></div>
+    <div class="meta-item"><span class="meta-label">Bugs</span><span class="meta-val">${bugs.length}</span></div>
+    <div class="meta-item"><span class="meta-label">Suggestions</span><span class="meta-val">${suggestions.length}</span></div>
+  </div>
+
+  <h2>Summary</h2>
+  <div class="explanation">${review.explanation || "No summary available."}</div>
+
+  <h2>Bugs (${bugs.length})</h2>
+  ${bugsHtml}
+
+  <h2>Suggestions (${suggestions.length})</h2>
+  ${suggestionsHtml}
+
+  <h2>Source Code</h2>
+  <pre>${review.fileContent.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</pre>
+
+  <script>setTimeout(() => { window.print(); }, 400);<\/script>
+</body>
+</html>`);
+  win.document.close();
 }
 
 function escHtml(str) {

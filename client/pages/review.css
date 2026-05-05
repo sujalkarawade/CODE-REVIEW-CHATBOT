@@ -549,7 +549,42 @@
   font-weight: 500;
 }
 
-/* ── Not Found ── */
+/* ── Download Dropdown ── */
+.download-dropdown {
+  position: relative;
+}
+
+.download-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--white);
+  border: var(--border);
+  box-shadow: 4px 4px 0 var(--black);
+  z-index: 50;
+  min-width: 180px;
+  flex-direction: column;
+}
+
+.download-menu.open { display: flex; }
+
+.download-option {
+  padding: 10px 16px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: left;
+  background: var(--white);
+  border: none;
+  border-bottom: 1px solid var(--gray-200);
+  cursor: pointer;
+  font-family: var(--font);
+  transition: background 0.1s;
+  white-space: nowrap;
+}
+
+.download-option:last-child { border-bottom: none; }
+.download-option:hover { background: var(--gray-50); }
 .not-found {
   text-align: center;
   padding: 120px 0;
