@@ -28,6 +28,7 @@ function render() {
       <div class="container">
         <div class="header-brand">
           <h1>Code Review Chatbot</h1>
+          <div class="header-divider"></div>
           <p>AI-Powered Analysis</p>
         </div>
         <nav>

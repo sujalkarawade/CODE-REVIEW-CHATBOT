@@ -1,40 +1,102 @@
 /* ── Header ── */
 header {
-  border-bottom: var(--border);
-  padding: 20px 0;
+  background: var(--black);
+  color: var(--white);
   position: sticky;
   top: 0;
-  background: var(--white);
   z-index: 100;
+  border-bottom: 3px solid var(--black);
 }
 
 header .container {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding-top: 0;
+  padding-bottom: 0;
+  min-height: 64px;
+}
+
+.header-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
 }
 
 header h1 {
-  font-size: 1.4rem;
+  font-size: 1.1rem;
   font-weight: 900;
-  letter-spacing: -0.5px;
+  letter-spacing: 2px;
   text-transform: uppercase;
+  color: var(--white);
+  line-height: 1;
+}
+
+.header-divider {
+  width: 2px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.25);
+  flex-shrink: 0;
 }
 
 header p {
-  font-size: 0.7rem;
+  font-size: 0.6rem;
   font-weight: 700;
-  color: var(--gray-600);
+  color: rgba(255, 255, 255, 0.45);
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 2px;
+  line-height: 1;
 }
 
 nav {
   display: flex;
-  gap: 8px;
+  gap: 0;
+}
+
+nav .btn {
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  border-radius: 0;
+  padding: 22px 20px;
+  font-size: 0.7rem;
+  letter-spacing: 1.5px;
+  transition: background 0.15s, color 0.15s;
+  position: relative;
+}
+
+nav .btn::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--white);
+  transform: scaleX(0);
+  transition: transform 0.15s;
+}
+
+nav .btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--white);
+}
+
+nav .btn:hover::after {
+  transform: scaleX(1);
+}
+
+nav .btn.active {
+  background: transparent;
+  color: var(--white);
+  font-weight: 900;
+}
+
+nav .btn.active::after {
+  transform: scaleX(1);
 }
 
 /* ── Page wrapper ── */
 #page {
-  min-height: calc(100vh - 73px);
+  min-height: calc(100vh - 64px);
 }
