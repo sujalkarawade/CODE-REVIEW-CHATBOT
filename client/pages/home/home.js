@@ -33,7 +33,10 @@ export function renderHome(container, navigate) {
                 </div>
                 <button class="upload-selected-remove" id="remove-file">✕</button>
               </div>
-              <button class="home-submit-btn" id="analyze-upload">Analyze Code →</button>
+              <button class="home-submit-btn" id="analyze-upload">
+                <span>Analyze Code</span>
+                <span>→</span>
+              </button>
             </div>
           </div>
         </div>
