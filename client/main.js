@@ -1,10 +1,10 @@
 import "highlight.js/styles/atom-one-light.css";
 import "./style.css";
 import "./main.css";
-import { renderHome } from "./pages/home.js";
-import { renderReview } from "./pages/review.js";
-import { renderHistory } from "./pages/history.js";
-import { renderChat } from "./pages/chat.js";
+import { renderHome } from "./pages/home/home.js";
+import { renderReview } from "./pages/review/review.js";
+import { renderHistory } from "./pages/history/history.js";
+import { renderChat } from "./pages/chat/chat.js";
 
 function getRoute() {
   const path = window.location.pathname;
